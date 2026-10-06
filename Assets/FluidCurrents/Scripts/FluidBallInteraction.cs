@@ -29,9 +29,9 @@ public class FluidBallInteraction : MonoBehaviour
             if (Physics.Raycast(pickRay, out RaycastHit pick) && pick.collider.gameObject == gameObject)
             {
                 dragPlane = new Plane(Vector3.up, new Vector3(0f, transform.position.y, 0f));
-                if (dragPlane.Raycast(pickRay, out float distance))
+                if (dragPlane.Raycast(pickRay, out float pickDistance))
                 {
-                    grabOffset = transform.position - pickRay.GetPoint(distance);
+                    grabOffset = transform.position - pickRay.GetPoint(pickDistance);
                     dragging = true;
                 }
             }
