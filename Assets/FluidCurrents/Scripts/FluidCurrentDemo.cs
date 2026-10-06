@@ -53,7 +53,6 @@ public class FluidCurrentDemo : MonoBehaviour
     private Renderer surfaceRenderer;
     private Material runtimeSurfaceMaterial;
     private FluidBallInteraction ball;
-    private FluidBallTrail sphereTrail;
     private FluidSimulation2D simulation;
     private bool settingFlowDirection;
     private Vector3 flowDirectionDragStart;
@@ -98,12 +97,6 @@ public class FluidCurrentDemo : MonoBehaviour
         GameObject surface = GameObject.Find("Fluid Surface");
         surfaceRenderer = surface != null ? surface.GetComponent<Renderer>() : null;
         ball = FindObjectOfType<FluidBallInteraction>();
-        if (ball != null && surfaceRenderer != null)
-        {
-            sphereTrail = ball.GetComponent<FluidBallTrail>();
-            if (sphereTrail == null) sphereTrail = ball.gameObject.AddComponent<FluidBallTrail>();
-            sphereTrail.Initialize(surfaceRenderer);
-        }
         EnsureSimulation();
     }
 
@@ -137,6 +130,8 @@ public class FluidCurrentDemo : MonoBehaviour
         runtimeSurfaceMaterial.SetFloat("_RedLineWidth", redLineWidth);
         runtimeSurfaceMaterial.SetFloat("_BlackLineWidth", blackLineWidth);
         runtimeSurfaceMaterial.SetFloat("_EdgeFadeDistance", edgeFadeDistance);
+        runtimeSurfaceMaterial.SetFloat("_RainbowFadeDistance", rainbowFadeDistance);
+        runtimeSurfaceMaterial.SetFloat("_RainbowCycleLength", rainbowCycleLength);
         runtimeSurfaceMaterial.SetFloat("_ElapsedTime", Time.time);
     }
 
@@ -192,7 +187,7 @@ public class FluidCurrentDemo : MonoBehaviour
         if (showRedLineWidthInOverlay) DrawOverlaySlider("Red line width", ref redLineWidth, 0.02f, 0.4f);
         if (showBlackLineWidthInOverlay) DrawOverlaySlider("Black line width", ref blackLineWidth, 0f, 0.2f);
         if (showEdgeFadeInOverlay) DrawOverlaySlider("Edge fade distance", ref edgeFadeDistance, 1f, 40f);
-        if (showRainbowFadeInOverlay) DrawOverlaySlider("Rainbow trail length", ref rainbowFadeDistance, 8f, 60f);
+        if (showRainbowFadeInOverlay) DrawOverlaySlider("Rainbow wake fade", ref rainbowFadeDistance, 8f, 60f);
         if (showRainbowCycleInOverlay) DrawOverlaySlider("Rainbow cycle length", ref rainbowCycleLength, 4f, 40f);
         if (showSimulationRateInOverlay) DrawOverlaySlider("Simulation rate", ref simulationRate, 15f, 60f);
         if (showFlowRecoveryInOverlay) DrawRecoverySlider();
@@ -414,11 +409,10 @@ public class FluidCurrentDemo : MonoBehaviour
         EnsureSimulation();
         simulation.Advance(Time.deltaTime, ball, flowDirection, flowVelocity, kinematicViscosity,
             wakeStrength, wakeViolence, currentOriginXZ, simulationRate, normalFlowRecovery);
-        if (sphereTrail != null)
-            sphereTrail.UpdateTrail(surfaceRenderer, rainbowFadeDistance, rainbowCycleLength);
         Bounds bounds = surfaceRenderer.bounds;
         runtimeSurfaceMaterial.SetVector("_FieldBounds",
             new Vector4(bounds.min.x, bounds.min.z, bounds.size.x, bounds.size.z));
+        runtimeSurfaceMaterial.SetVector("_BallPosition", ball.transform.position);
         runtimeSurfaceMaterial.SetTexture("_FlowField", simulation.FieldTexture);
     }
 }

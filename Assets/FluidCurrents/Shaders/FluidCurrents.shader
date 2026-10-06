@@ -9,12 +9,15 @@ Shader "FluidCurrents/World Surface"
         _GoldCurrent ("Amber current", Color) = (1, 0.52, 0, 1)
         _FlowDirection ("Flow direction", Vector) = (0.22, -0.41, 0, 0)
         _CurrentOrigin ("Fixed current origin", Vector) = (0.22, 8, 0, 0)
+        _BallPosition ("Sphere world position", Vector) = (0, 0, 8, 0)
         _FlowVelocity ("Flow velocity", Float) = 1
         _LineFrequency ("Line frequency", Float) = 4.49
         _LineWidth ("Streamline width", Range(0.005, 0.2)) = 0.045
         _RedLineWidth ("Red current width", Range(0.02, 0.4)) = 0.16
         _BlackLineWidth ("Black outline width", Range(0, 0.2)) = 0.04
         _EdgeFadeDistance ("Surface edge fade distance", Range(1, 40)) = 12
+        _RainbowFadeDistance ("Rainbow wake fade distance", Range(8, 60)) = 36
+        _RainbowCycleLength ("Rainbow color cycle length", Range(4, 40)) = 14
         _BallRadius ("Sphere radius", Float) = 1.5
         _FieldBounds ("Flow field world bounds", Vector) = (-30, -20, 60, 60)
         _ElapsedTime ("Elapsed time", Float) = 0
@@ -41,12 +44,15 @@ Shader "FluidCurrents/World Surface"
             fixed4 _GoldCurrent;
             float4 _FlowDirection;
             float4 _CurrentOrigin;
+            float4 _BallPosition;
             float _FlowVelocity;
             float _LineFrequency;
             float _LineWidth;
             float _RedLineWidth;
             float _BlackLineWidth;
             float _EdgeFadeDistance;
+            float _RainbowFadeDistance;
+            float _RainbowCycleLength;
             float _BallRadius;
             float _ElapsedTime;
             sampler2D _FlowField;
@@ -71,6 +77,12 @@ Shader "FluidCurrents/World Surface"
                 p = frac(p * float2(123.34, 456.21));
                 p += dot(p, p + 45.32);
                 return frac(p.x * p.y);
+            }
+
+            float3 hsvToRgb(float hue)
+            {
+                float3 phase = frac(hue + float3(0.0, 0.6666667, 0.3333333));
+                return saturate(abs(phase * 6.0 - 3.0) - 1.0);
             }
 
             fixed4 frag(v2f input) : SV_Target
@@ -98,6 +110,22 @@ Shader "FluidCurrents/World Surface"
                 float contourShadow = 1.0 - smoothstep(_LineWidth + _BlackLineWidth, _LineWidth + _BlackLineWidth + contourEdge, contourDistance);
                 color = lerp(color, float3(0.0, 0.0, 0.0), contourShadow * 0.92);
                 color = lerp(color, _Line.rgb, contour * (0.58 + fill * 0.38 + turbulence * 0.18));
+
+                // Tint the actual streamline contours inside the sphere's downstream
+                // wake. The hue advances along the wake and the spread follows its
+                // naturally widening simulated region rather than a fixed screen axis.
+                float2 side = float2(-flow.y, flow.x);
+                float2 wakeRelative = world - _BallPosition.xz;
+                float wakeAlong = dot(wakeRelative, flow);
+                float wakeAcross = dot(wakeRelative, side);
+                float downstream = smoothstep(-radius * 0.2, radius * 0.65, wakeAlong);
+                float wakeWidth = radius * 1.1 + max(wakeAlong, 0.0) * 0.16;
+                float wakeEnvelope = downstream * exp(-abs(wakeAcross) / max(wakeWidth, 0.01));
+                float wakeFade = exp(-max(wakeAlong, 0.0) / max(_RainbowFadeDistance, 0.01));
+                float rainbowAmount = contour * wakeEnvelope * wakeFade * (0.82 + turbulence * 0.18);
+                float rainbowHue = frac(0.78 - wakeAlong / max(_RainbowCycleLength, 0.01)
+                                      + vorticity * 0.1 + wakeAcross * 0.018);
+                color = lerp(color, hsvToRgb(rainbowHue), rainbowAmount * 0.96);
 
                 // Keep the accent on the fixed psi=0 contour set by Current Origin.
                 // The sphere changes the sampled field and bends this contour, but
