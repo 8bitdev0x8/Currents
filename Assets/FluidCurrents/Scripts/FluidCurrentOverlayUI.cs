@@ -344,11 +344,11 @@ public sealed class FluidCurrentOverlayUI : MonoBehaviour
     {
         // The static defaultFontAsset property dereferences TMP_Settings.instance
         // without checking whether the TMP Settings resource exists in this project.
-        // Use the guarded accessor so the runtime Arial fallback can be created.
+        // Use the guarded accessor so the runtime built-in font fallback can be created.
         TMP_FontAsset configuredFont = TMP_Settings.GetFontAsset();
         if (configuredFont != null) return configuredFont;
         if (fallbackFont != null) return fallbackFont;
-        fallbackSystemFont = Resources.GetBuiltinResource<Font>("Arial.ttf");
+        fallbackSystemFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         if (fallbackSystemFont == null) return null;
         fallbackFont = TMP_FontAsset.CreateFontAsset(fallbackSystemFont);
         if (fallbackFont != null) fallbackFont.atlasPopulationMode = AtlasPopulationMode.Dynamic;
