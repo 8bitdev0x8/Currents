@@ -126,10 +126,10 @@ Shader "FluidCurrents/World Surface"
                 }
                 psi += wake * _WakeStrength;
 
-                float texture = fbm(world * 0.54 + flow * (_ElapsedTime * 0.09));
-                psi += (texture - 0.5) * speed * radius * 0.045;
+                float fieldNoise = fbm(world * 0.54 + flow * (_ElapsedTime * 0.09));
+                psi += (fieldNoise - 0.5) * speed * radius * 0.045;
                 float contour = pow(saturate(1.0 - abs(sin(psi * _LineFrequency))), 15.0);
-                float fill = smoothstep(0.14, 0.88, texture);
+                float fill = smoothstep(0.14, 0.88, fieldNoise);
                 float3 color = lerp(_Deep.rgb, _Purple.rgb, 0.25 + fill * 0.55);
                 color = lerp(color, _Line.rgb, contour * (0.58 + fill * 0.38));
 
