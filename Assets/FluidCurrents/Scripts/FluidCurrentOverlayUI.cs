@@ -26,6 +26,7 @@ public sealed class FluidCurrentOverlayUI : MonoBehaviour
     private Toggle rainbowToggle;
     private TMP_FontAsset fallbackFont;
     private Font fallbackSystemFont;
+    private bool fallbackFontIsRuntimeGenerated;
     private bool open;
     private FontStyles labelFontStyle = FontStyles.Bold;
 
@@ -330,13 +331,19 @@ public sealed class FluidCurrentOverlayUI : MonoBehaviour
         GameObject textObject = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
         textObject.transform.SetParent(parent, false);
         TMP_Text text = textObject.GetComponent<TMP_Text>();
-        text.font = ResolveFont();
+        TMP_FontAsset resolvedFont = ResolveFont();
+        text.font = resolvedFont;
+        if (resolvedFont != null && resolvedFont.material != null)
+            text.fontSharedMaterial = resolvedFont.material;
         text.text = value;
         text.fontSize = size;
         text.color = color;
         text.alignment = alignment;
         text.fontStyle = style;
         text.raycastTarget = false;
+        text.enableWordWrapping = false;
+        text.overflowMode = TextOverflowModes.Overflow;
+        text.ForceMeshUpdate();
         return text;
     }
 
@@ -357,7 +364,11 @@ public sealed class FluidCurrentOverlayUI : MonoBehaviour
         fallbackSystemFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         if (fallbackSystemFont == null) return null;
         fallbackFont = TMP_FontAsset.CreateFontAsset(fallbackSystemFont);
-        if (fallbackFont != null) fallbackFont.atlasPopulationMode = AtlasPopulationMode.Dynamic;
+        if (fallbackFont != null)
+        {
+            fallbackFontIsRuntimeGenerated = true;
+            fallbackFont.atlasPopulationMode = AtlasPopulationMode.Dynamic;
+        }
         return fallbackFont;
     }
 
@@ -401,7 +412,9 @@ public sealed class FluidCurrentOverlayUI : MonoBehaviour
             if (Application.isPlaying) Destroy(canvasObject);
             else DestroyImmediate(canvasObject);
         }
-        if (fallbackFont != null)
+        // Resources.Load returns a project asset. Destroying it at runtime causes
+        // Unity's asset-protection error; only release assets we created ourselves.
+        if (fallbackFontIsRuntimeGenerated && fallbackFont != null)
         {
             if (Application.isPlaying) Destroy(fallbackFont);
             else DestroyImmediate(fallbackFont);
