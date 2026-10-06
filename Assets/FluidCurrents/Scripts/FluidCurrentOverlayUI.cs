@@ -330,24 +330,30 @@ public sealed class FluidCurrentOverlayUI : MonoBehaviour
         GameObject textObject = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
         textObject.transform.SetParent(parent, false);
         TMP_Text text = textObject.GetComponent<TMP_Text>();
+        text.font = ResolveFont();
         text.text = value;
         text.fontSize = size;
         text.color = color;
         text.alignment = alignment;
         text.fontStyle = style;
         text.raycastTarget = false;
-        text.font = ResolveFont();
         return text;
     }
 
     private TMP_FontAsset ResolveFont()
     {
+        if (fallbackFont != null) return fallbackFont;
+
+        // Prefer the bundled SDF asset. It renders reliably even if TMP Settings
+        // have not initialized or don't specify a default font.
+        fallbackFont = Resources.Load<TMP_FontAsset>("Fonts & Materials/LiberationSans SDF");
+        if (fallbackFont != null) return fallbackFont;
+
         // The static defaultFontAsset property dereferences TMP_Settings.instance
         // without checking whether the TMP Settings resource exists in this project.
-        // Use the guarded accessor so the runtime built-in font fallback can be created.
         TMP_FontAsset configuredFont = TMP_Settings.GetFontAsset();
         if (configuredFont != null) return configuredFont;
-        if (fallbackFont != null) return fallbackFont;
+
         fallbackSystemFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         if (fallbackSystemFont == null) return null;
         fallbackFont = TMP_FontAsset.CreateFontAsset(fallbackSystemFont);
