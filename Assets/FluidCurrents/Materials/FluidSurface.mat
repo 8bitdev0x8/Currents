@@ -34,7 +34,7 @@ Material:
     - _Viscosity: 0.028
     - _WakeStrength: 2
     m_Colors:
-    - _BallPosition: {r: 0, g: 0.75, b: 8, a: 0}
+    - _BallPosition: {r: 0, g: 0, b: 8, a: 0}
     - _CurrentOrigin: {r: 0.22, g: 8, b: 0, a: 0}
     - _Deep: {r: 0.004, g: 0.003, b: 0.008, a: 1}
     - _FlowDirection: {r: 0.22, g: -0.41, b: 0, a: 0}

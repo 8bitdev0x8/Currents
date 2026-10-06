@@ -84,7 +84,7 @@ public static class FluidCurrentsSceneSetup
         const float ballRadius = 1.5f;
         GameObject ball = GameObject.CreatePrimitive(PrimitiveType.Sphere);
         ball.name = "Interactive Silver Ball";
-        ball.transform.position = new Vector3(0f, ballRadius * 0.5f, 8f);
+        ball.transform.position = new Vector3(0f, 0f, 8f);
         ball.transform.localScale = Vector3.one * (ballRadius * 2f);
         ball.GetComponent<Renderer>().sharedMaterial = GetOrCreateMaterial(
             BallMaterialPath,
