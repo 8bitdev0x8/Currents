@@ -116,13 +116,13 @@ Shader "FluidCurrents/World Surface"
                     float age = (i + phase) * halfPeriod;
                     float shedDistance = radius * 1.08 + age * 0.86 * speed;
                     float parity = frac((i + cycle) * 0.5) * 2.0;
-                    float sign = parity < 1.0 ? 1.0 : -1.0;
-                    float lateral = sign * radius * (0.52 + 0.06 * sin(age * speed / radius));
+                    float vortexSign = parity < 1.0 ? 1.0 : -1.0;
+                    float lateral = vortexSign * radius * (0.52 + 0.06 * sin(age * speed / radius));
                     float2 vortex = float2(shedDistance, lateral);
                     float2 d = float2(along, across) - vortex;
                     float core2 = radius * radius * 0.045 + 4.0 * _Viscosity * age;
                     float attenuation = exp(-age / max(halfPeriod * 7.0, 0.01));
-                    wake += sign * circulation * 0.0796 * log(1.0 + dot(d, d) / max(core2, 0.0001)) * attenuation;
+                    wake += vortexSign * circulation * 0.0796 * log(1.0 + dot(d, d) / max(core2, 0.0001)) * attenuation;
                 }
                 psi += wake * _WakeStrength;
 
