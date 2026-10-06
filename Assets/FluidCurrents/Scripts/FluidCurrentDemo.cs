@@ -26,7 +26,7 @@ public class FluidCurrentDemo : MonoBehaviour
     [Range(4f, 40f)] public float rainbowCycleLength = 14f;
     [Range(15f, 60f)] public float simulationRate = 30f;
     [Header("Flow recovery")]
-    [Range(0.001f, 2f)] public float normalFlowRecovery = 0.015f;
+    [Range(0.0001f, 2f)] public float normalFlowRecovery = 0.001f;
     public Vector2 flowDirection = new Vector2(0.22f, -0.41f);
 
     [Header("Fixed accent current")]

@@ -290,6 +290,7 @@ MonoBehaviour:
   blackLineWidth: 0.04
   flowDirection: {x: 0.22, y: -0.41}
   currentOriginXZ: {x: 0.22, y: 8}
+  normalFlowRecovery: 0.001
 --- !u!81 &811440365
 AudioListener:
   m_ObjectHideFlags: 0
