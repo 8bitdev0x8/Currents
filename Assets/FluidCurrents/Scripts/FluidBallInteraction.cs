@@ -8,8 +8,11 @@ public class FluidBallInteraction : MonoBehaviour
     private Plane dragPlane;
     private Vector3 grabOffset;
     private bool dragging;
+    private float targetHeight;
+    private float heightSmoothVelocity;
 
     [Min(0.1f)] public float verticalScrollSpeed = 3f;
+    [Min(0.01f)] public float heightSmoothTime = 0.12f;
 
     public float Radius => transform.lossyScale.x * 0.5f;
 
@@ -17,6 +20,7 @@ public class FluidBallInteraction : MonoBehaviour
     {
         sceneCamera = Camera.main;
         if (sceneCamera == null) sceneCamera = FindObjectOfType<Camera>();
+        targetHeight = transform.position.y;
     }
 
     private void Update()
@@ -38,14 +42,18 @@ public class FluidBallInteraction : MonoBehaviour
         }
 
         if (Input.GetMouseButtonUp(1)) dragging = false;
-        if (!dragging || !Input.GetMouseButton(1)) return;
-
-        float height = Mathf.Max(Radius, transform.position.y + Input.mouseScrollDelta.y * verticalScrollSpeed);
-        Ray ray = sceneCamera.ScreenPointToRay(Input.mousePosition);
-        if (dragPlane.Raycast(ray, out float distance))
+        if (dragging && Input.GetMouseButton(1))
         {
-            Vector3 hit = ray.GetPoint(distance) + grabOffset;
-            transform.position = new Vector3(hit.x, height, hit.z);
+            targetHeight += Input.mouseScrollDelta.y * verticalScrollSpeed;
+            Ray ray = sceneCamera.ScreenPointToRay(Input.mousePosition);
+            if (dragPlane.Raycast(ray, out float distance))
+            {
+                Vector3 hit = ray.GetPoint(distance) + grabOffset;
+                transform.position = new Vector3(hit.x, transform.position.y, hit.z);
+            }
         }
+
+        float height = Mathf.SmoothDamp(transform.position.y, targetHeight, ref heightSmoothVelocity, heightSmoothTime);
+        transform.position = new Vector3(transform.position.x, height, transform.position.z);
     }
 }

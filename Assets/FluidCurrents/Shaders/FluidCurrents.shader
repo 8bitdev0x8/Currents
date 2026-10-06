@@ -101,10 +101,15 @@ Shader "FluidCurrents/World Surface"
                 float across = dot(relative, side);
                 float radius = max(_BallRadius, 0.01);
                 float speed = max(_FlowVelocity, 0.01);
+                float2 fieldRelative = world - _CurrentOrigin.xy;
+                float fixedAlong = dot(fieldRelative, flow);
+                float fixedAcross = dot(fieldRelative, side);
 
-                // Potential flow around a circular section of the sphere.
+                // Keep the background streamlines fixed in world space and localize sphere influence.
                 float r2 = max(along * along + across * across, radius * radius * 0.72);
-                float psi = speed * across * (1.0 - radius * radius / r2);
+                float potentialPsi = speed * across * (1.0 - radius * radius / r2);
+                float localFalloff = exp(-dot(relative, relative) / (radius * radius * 18.0));
+                float psi = speed * fixedAcross + (potentialPsi - speed * across) * localFalloff;
 
                 // Alternating Gaussian-core vortices, shed at f = St * U / D.
                 float halfPeriod = radius / max(_Strouhal * speed, 0.01);
@@ -126,9 +131,13 @@ Shader "FluidCurrents/World Surface"
                     float attenuation = exp(-age / max(halfPeriod * 7.0, 0.01));
                     wake += vortexSign * circulation * 0.0796 * log(1.0 + dot(d, d) / max(core2, 0.0001)) * attenuation;
                 }
-                psi += wake * _WakeStrength;
+                float wakeWidth = radius * (1.0 + max(along, 0.0) * 0.12);
+                float wakeEnvelope = exp(-pow(max(-along, 0.0) / radius, 2.0))
+                                   * exp(-pow(max(along, 0.0) / (radius * 20.0), 2.0))
+                                   * exp(-pow(across / max(wakeWidth, 0.01), 2.0));
+                psi += wake * _WakeStrength * wakeEnvelope;
 
-                float fieldNoise = fbm(world * 0.54 + flow * (_ElapsedTime * 0.09));
+                float fieldNoise = fbm(world * 0.54);
                 psi += (fieldNoise - 0.5) * speed * radius * 0.045;
                 float contour = pow(saturate(1.0 - abs(sin(psi * _LineFrequency))), 15.0);
                 float fill = smoothstep(0.14, 0.88, fieldNoise);
@@ -136,17 +145,24 @@ Shader "FluidCurrents/World Surface"
                 color = lerp(color, _Line.rgb, contour * (0.58 + fill * 0.38));
 
                 // Anchor the red/gold accent in world space so moving the sphere only changes its wake.
-                float2 currentRelative = world - _CurrentOrigin.xy;
-                float currentAlong = dot(currentRelative, flow);
-                float currentAcross = dot(currentRelative, side);
-                float currentCurve = -radius * 1.05 + sin(currentAlong * 0.075) * radius * 0.14;
+                float currentAlong = fixedAlong;
+                float currentAcross = fixedAcross;
+                float baseCurrentCurve = -radius * 1.05 + sin(currentAlong * 0.075) * radius * 0.14;
+                float ballAlongCurrent = dot(center - _CurrentOrigin.xy, flow);
+                float ballAcrossCurrent = dot(center - _CurrentOrigin.xy, side);
+                float ballCurveOffset = ballAcrossCurrent - (-radius * 1.05 + sin(ballAlongCurrent * 0.075) * radius * 0.14);
+                float alongResponse = exp(-pow((currentAlong - ballAlongCurrent) / (radius * 1.65), 2.0));
+                float proximityResponse = exp(-pow(ballCurveOffset / (radius * 1.25), 2.0));
+                float sideOfLine = ballCurveOffset >= 0.0 ? 1.0 : -1.0;
+                float verticalResponse = exp(-pow(_BallPosition.y / (radius * 2.0), 2.0));
+                float currentCurve = baseCurrentCurve - sideOfLine * radius * 1.15 * alongResponse * proximityResponse * verticalResponse;
                 float stripe = 1.0 - smoothstep(radius * 0.035, radius * 0.09, abs(currentAcross - currentCurve));
                 float goldBlend = smoothstep(radius * 2.5, radius * 11.0, currentAlong);
                 float3 accent = lerp(_RedCurrent.rgb, _GoldCurrent.rgb, goldBlend);
                 color = lerp(color, accent, stripe * 0.96);
 
                 // Contact shadow and distance haze give the flat field perspective depth.
-                float contact = exp(-(along * along / (radius * radius * 7.0) + across * across / (radius * radius * 2.2)));
+                float contact = exp(-(along * along / (radius * radius * 7.0) + across * across / (radius * radius * 2.2))) * verticalResponse;
                 color *= 1.0 - contact * 0.55;
                 float haze = smoothstep(25.0, 95.0, input.eyeDepth);
                 color = lerp(color, _Deep.rgb * 0.55, haze);
