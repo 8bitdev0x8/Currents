@@ -53,8 +53,8 @@ public class FluidBallInteraction : MonoBehaviour
     {
         if (surfaceRenderer == null)
         {
-            GameObject surface = GameObject.Find("Fluid Surface");
-            if (surface != null) surfaceRenderer = surface.GetComponent<Renderer>();
+            GameObject foundSurface = GameObject.Find("Fluid Surface");
+            if (foundSurface != null) surfaceRenderer = foundSurface.GetComponent<Renderer>();
         }
         if (surfaceRenderer == null) return position;
 
