@@ -1,17 +1,16 @@
 using System;
 using System.Collections.Generic;
-using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-/// <summary>Builds the runtime controls with crisp TextMeshPro labels.</summary>
+/// <summary>Builds the runtime controls with Unity UI text labels.</summary>
 public sealed class FluidCurrentOverlayUI : MonoBehaviour
 {
     private sealed class SliderBinding
     {
         public Slider slider;
-        public TMP_Text valueText;
+        public Text valueText;
         public Func<float> read;
         public Action<float> write;
         public bool logarithmic;
@@ -21,14 +20,12 @@ public sealed class FluidCurrentOverlayUI : MonoBehaviour
     private FluidCurrentDemo demo;
     private GameObject canvasObject;
     private GameObject panel;
-    private TMP_Text panelToggleText;
-    private TMP_Text fpsText;
+    private Text panelToggleText;
+    private Text fpsText;
     private Toggle rainbowToggle;
-    private TMP_FontAsset fallbackFont;
     private Font fallbackSystemFont;
-    private bool fallbackFontIsRuntimeGenerated;
     private bool open;
-    private FontStyles labelFontStyle = FontStyles.Bold;
+    private FontStyle labelFontStyle = FontStyle.Bold;
 
     public void Initialize(FluidCurrentDemo controller)
     {
@@ -56,32 +53,28 @@ public sealed class FluidCurrentOverlayUI : MonoBehaviour
 
     private void Build()
     {
-        // Initialize TMP before adding TextMeshProUGUI objects; in the Editor its
-        // Awake path defers initialization if the settings singleton is still null.
-        TMP_Settings.LoadDefaultSettings();
         EnsureEventSystem();
         canvasObject = new GameObject("Currents TMP Overlay", typeof(RectTransform), typeof(Canvas),
             typeof(CanvasScaler), typeof(GraphicRaycaster));
         Canvas canvas = canvasObject.GetComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
         canvas.sortingOrder = 100;
-        canvas.pixelPerfect = true;
         CanvasScaler scaler = canvasObject.GetComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1600f, 900f);
         scaler.matchWidthOrHeight = 0.5f;
 
         Button openButton = MakeButton(canvas.transform, "Controls", new Vector2(12f, -12f),
-            new Vector2(330f, 40f), new Color(0.035f, 0.025f, 0.055f, 0.97f), 16f, TextAnchor.MiddleLeft);
-        panelToggleText = openButton.GetComponentInChildren<TMP_Text>();
+            new Vector2(330f, 38f), new Color(0.035f, 0.025f, 0.055f, 0.97f), 13f, TextAnchor.MiddleLeft);
+        panelToggleText = openButton.GetComponentInChildren<Text>();
         panelToggleText.text = "CURRENTS     /     CONTROLS     +";
         openButton.onClick.AddListener(TogglePanel);
 
         Image fpsCard = MakeImage(canvas.transform, "FPS Card", new Vector2(-12f, -12f),
             new Vector2(108f, 34f), new Color(0.035f, 0.025f, 0.055f, 0.97f),
             new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f));
-        fpsText = MakeText(fpsCard.transform, "FPS", "0 FPS", 15f,
-            new Color(1f, 0.82f, 0.46f), TextAlignmentOptions.Center, FontStyles.Bold);
+        fpsText = MakeText(fpsCard.transform, "FPS", "0 FPS", 13f,
+            new Color(1f, 0.82f, 0.46f), TextAnchor.MiddleCenter, FontStyle.Bold);
         Stretch(fpsText.rectTransform, 8f, 0f, -8f, 0f);
 
         panel = MakePanel(canvas.transform);
@@ -106,7 +99,7 @@ public sealed class FluidCurrentOverlayUI : MonoBehaviour
     private void BuildPanelContents()
     {
         Button restore = MakeButton(panel.transform, "Restore Defaults", new Vector2(-10f, -10f),
-            new Vector2(144f, 30f), new Color(1f, 0.69f, 0.26f), 12f, TextAnchor.MiddleCenter);
+            new Vector2(126f, 25f), new Color(1f, 0.69f, 0.26f), 9f, TextAnchor.MiddleCenter);
         RectTransform restoreRect = restore.GetComponent<RectTransform>();
         restoreRect.anchorMin = new Vector2(1f, 1f);
         restoreRect.anchorMax = new Vector2(1f, 1f);
@@ -117,11 +110,11 @@ public sealed class FluidCurrentOverlayUI : MonoBehaviour
             demo.RestoreDefaultValues();
             RefreshValues();
         });
-        TMP_Text restoreText = restore.GetComponentInChildren<TMP_Text>();
+        Text restoreText = restore.GetComponentInChildren<Text>();
         restoreText.color = new Color(0.08f, 0.035f, 0.01f);
 
-        TMP_Text title = MakeText(panel.transform, "Panel Title", "LIVE SIMULATION PARAMETERS",
-            14f, new Color(1f, 0.69f, 0.26f), TextAlignmentOptions.Left, labelFontStyle);
+        Text title = MakeText(panel.transform, "Panel Title", "LIVE SIMULATION PARAMETERS",
+            10f, new Color(1f, 0.69f, 0.26f), TextAnchor.MiddleLeft, labelFontStyle);
         RectTransform titleRect = title.rectTransform;
         titleRect.anchorMin = new Vector2(0f, 1f);
         titleRect.anchorMax = new Vector2(1f, 1f);
@@ -184,8 +177,8 @@ public sealed class FluidCurrentOverlayUI : MonoBehaviour
     private void AddRainbowToggle(Transform parent)
     {
         RectTransform row = CreateRow(parent, 34f);
-        TMP_Text label = MakeText(row, "Rainbow Label", "RAINBOW WAKE", 13f,
-            new Color(0.79f, 0.72f, 0.85f), TextAlignmentOptions.Left, FontStyles.Bold);
+        Text label = MakeText(row, "Rainbow Label", "RAINBOW WAKE", 10f,
+            new Color(0.79f, 0.72f, 0.85f), TextAnchor.MiddleLeft, FontStyle.Bold);
         RectTransform labelRect = label.rectTransform;
         labelRect.anchorMin = Vector2.zero;
         labelRect.anchorMax = Vector2.one;
@@ -221,16 +214,16 @@ public sealed class FluidCurrentOverlayUI : MonoBehaviour
         float minimum, float maximum, bool logarithmic = false)
     {
         RectTransform row = CreateRow(parent, 50f);
-        TMP_Text labelText = MakeText(row, label + " Label", label.ToUpperInvariant(), 12f,
-            new Color(0.79f, 0.72f, 0.85f), TextAlignmentOptions.Left, FontStyles.Bold);
+        Text labelText = MakeText(row, label + " Label", label.ToUpperInvariant(), 9f,
+            new Color(0.79f, 0.72f, 0.85f), TextAnchor.MiddleLeft, FontStyle.Bold);
         RectTransform labelRect = labelText.rectTransform;
         labelRect.anchorMin = new Vector2(0f, 0.52f);
         labelRect.anchorMax = new Vector2(1f, 1f);
         labelRect.offsetMin = new Vector2(4f, 0f);
         labelRect.offsetMax = new Vector2(-64f, 0f);
 
-        TMP_Text valueText = MakeText(row, label + " Value", read().ToString("0.###"), 12f,
-            new Color(0.98f, 0.93f, 1f), TextAlignmentOptions.Right, FontStyles.Bold);
+        Text valueText = MakeText(row, label + " Value", read().ToString("0.###"), 9f,
+            new Color(0.98f, 0.93f, 1f), TextAnchor.MiddleRight, FontStyle.Bold);
         RectTransform valueRect = valueText.rectTransform;
         valueRect.anchorMin = new Vector2(1f, 0.52f);
         valueRect.anchorMax = Vector2.one;
@@ -276,8 +269,8 @@ public sealed class FluidCurrentOverlayUI : MonoBehaviour
 
     private void AddSection(Transform parent, string text)
     {
-        TMP_Text section = MakeText(parent, "Section", text, 12f,
-            new Color(1f, 0.69f, 0.26f), TextAlignmentOptions.Left, FontStyles.Bold);
+        Text section = MakeText(parent, "Section", text, 9f,
+            new Color(1f, 0.69f, 0.26f), TextAnchor.MiddleLeft, FontStyle.Bold);
         LayoutElement layout = section.gameObject.AddComponent<LayoutElement>();
         layout.preferredHeight = 20f;
     }
@@ -306,8 +299,8 @@ public sealed class FluidCurrentOverlayUI : MonoBehaviour
         image.color = color;
         Button button = buttonObject.GetComponent<Button>();
         button.targetGraphic = image;
-        TMP_Text text = MakeText(buttonObject.transform, name + " Text", name.ToUpperInvariant(), fontSize,
-            new Color(0.95f, 0.82f, 1f), ToTMPAlignment(alignment), FontStyles.Bold);
+        Text text = MakeText(buttonObject.transform, name + " Text", name.ToUpperInvariant(), fontSize,
+            new Color(0.95f, 0.82f, 1f), ToTextAnchor(alignment), FontStyle.Bold);
         Stretch(text.rectTransform, 12f, 2f, -8f, -2f);
         if (alignment == TextAnchor.MiddleCenter) Stretch(text.rectTransform, 2f, 2f, -2f, -2f);
         return button;
@@ -329,51 +322,29 @@ public sealed class FluidCurrentOverlayUI : MonoBehaviour
         return image;
     }
 
-    private TMP_Text MakeText(Transform parent, string name, string value, float size,
-        Color color, TextAlignmentOptions alignment, FontStyles style)
+    private Text MakeText(Transform parent, string name, string value, float size,
+        Color color, TextAnchor alignment, FontStyle style)
     {
-        GameObject textObject = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        GameObject textObject = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
         textObject.transform.SetParent(parent, false);
-        TMP_Text text = textObject.GetComponent<TMP_Text>();
-        TMP_FontAsset resolvedFont = ResolveFont();
-        text.font = resolvedFont;
-        if (resolvedFont != null && resolvedFont.material != null)
-            text.fontSharedMaterial = resolvedFont.material;
+        Text text = textObject.GetComponent<Text>();
+        text.font = ResolveFont();
         text.text = value;
-        text.fontSize = size;
+        text.fontSize = Mathf.RoundToInt(size);
         text.color = color;
         text.alignment = alignment;
         text.fontStyle = style;
         text.raycastTarget = false;
-        text.enableWordWrapping = false;
-        text.overflowMode = TextOverflowModes.Overflow;
-        text.ForceMeshUpdate();
+        text.horizontalOverflow = HorizontalWrapMode.Overflow;
+        text.verticalOverflow = VerticalWrapMode.Overflow;
         return text;
     }
 
-    private TMP_FontAsset ResolveFont()
+    private Font ResolveFont()
     {
-        if (fallbackFont != null) return fallbackFont;
-
-        // Prefer the bundled SDF asset. It renders reliably even if TMP Settings
-        // have not initialized or don't specify a default font.
-        fallbackFont = Resources.Load<TMP_FontAsset>("Fonts & Materials/LiberationSans SDF");
-        if (fallbackFont != null) return fallbackFont;
-
-        // The static defaultFontAsset property dereferences TMP_Settings.instance
-        // without checking whether the TMP Settings resource exists in this project.
-        TMP_FontAsset configuredFont = TMP_Settings.GetFontAsset();
-        if (configuredFont != null) return configuredFont;
-
-        fallbackSystemFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        if (fallbackSystemFont == null) return null;
-        fallbackFont = TMP_FontAsset.CreateFontAsset(fallbackSystemFont);
-        if (fallbackFont != null)
-        {
-            fallbackFontIsRuntimeGenerated = true;
-            fallbackFont.atlasPopulationMode = AtlasPopulationMode.Dynamic;
-        }
-        return fallbackFont;
+        if (fallbackSystemFont == null)
+            fallbackSystemFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        return fallbackSystemFont;
     }
 
     private static RectTransform CreateRect(string name, Transform parent)
@@ -398,9 +369,9 @@ public sealed class FluidCurrentOverlayUI : MonoBehaviour
         panelToggleText.text = open ? "CURRENTS     /     CONTROLS     −" : "CURRENTS     /     CONTROLS     +";
     }
 
-    private static TextAlignmentOptions ToTMPAlignment(TextAnchor alignment)
+    private static TextAnchor ToTextAnchor(TextAnchor alignment)
     {
-        return alignment == TextAnchor.MiddleCenter ? TextAlignmentOptions.Center : TextAlignmentOptions.Left;
+        return alignment;
     }
 
     private static void EnsureEventSystem()
@@ -415,13 +386,6 @@ public sealed class FluidCurrentOverlayUI : MonoBehaviour
         {
             if (Application.isPlaying) Destroy(canvasObject);
             else DestroyImmediate(canvasObject);
-        }
-        // Resources.Load returns a project asset. Destroying it at runtime causes
-        // Unity's asset-protection error; only release assets we created ourselves.
-        if (fallbackFontIsRuntimeGenerated && fallbackFont != null)
-        {
-            if (Application.isPlaying) Destroy(fallbackFont);
-            else DestroyImmediate(fallbackFont);
         }
     }
 }
