@@ -15,6 +15,7 @@ Shader "FluidCurrents/World Surface"
         _RedLineWidth ("Red current width", Range(0.02, 0.4)) = 0.16
         _BlackLineWidth ("Black outline width", Range(0, 0.2)) = 0.04
         _EdgeFadeDistance ("Surface edge fade distance", Range(1, 40)) = 12
+        _RainbowEnabled ("Enable rainbow wake", Float) = 0
         _BallRadius ("Sphere radius", Float) = 1.5
         _FieldBounds ("Flow field world bounds", Vector) = (-30, -20, 60, 60)
         _ElapsedTime ("Elapsed time", Float) = 0
@@ -48,6 +49,7 @@ Shader "FluidCurrents/World Surface"
             float _RedLineWidth;
             float _BlackLineWidth;
             float _EdgeFadeDistance;
+            float _RainbowEnabled;
             float _BallRadius;
             float _ElapsedTime;
             sampler2D _FlowField;
@@ -61,9 +63,11 @@ Shader "FluidCurrents/World Surface"
             v2f vert(appdata input)
             {
                 v2f output;
-                float4 world = mul(unity_ObjectToWorld, input.vertex);
+                float scaleX = length(float3(unity_ObjectToWorld._m00, unity_ObjectToWorld._m10, unity_ObjectToWorld._m20));
+                float scaleY = length(float3(unity_ObjectToWorld._m01, unity_ObjectToWorld._m11, unity_ObjectToWorld._m21));
+                float scaleZ = length(float3(unity_ObjectToWorld._m02, unity_ObjectToWorld._m12, unity_ObjectToWorld._m22));
                 output.position = UnityObjectToClipPos(input.vertex);
-                output.worldPos = world.xyz;
+                output.worldPos = input.vertex.xyz * float3(scaleX, scaleY, scaleZ);
                 output.eyeDepth = -UnityObjectToViewPos(input.vertex).z;
                 return output;
             }
@@ -110,11 +114,14 @@ Shader "FluidCurrents/World Surface"
                 // Rainbow dye is injected along the sphere's swept contact path and
                 // advected by the velocity solver. Color therefore remains where the
                 // fluid carried it instead of following the sphere as a moving mask.
-                float4 rainbowField = tex2D(_RainbowField, saturate(fieldUv));
-                float2 hueVector = rainbowField.rg * 2.0 - 1.0;
-                float rainbowHue = frac(atan2(hueVector.y, hueVector.x) * 0.15915494 + 0.5);
-                float rainbowAmount = contour * rainbowField.b * 0.96;
-                color = lerp(color, hsvToRgb(rainbowHue), rainbowAmount);
+                if (_RainbowEnabled > 0.5)
+                {
+                    float4 rainbowField = tex2D(_RainbowField, saturate(fieldUv));
+                    float2 hueVector = rainbowField.rg * 2.0 - 1.0;
+                    float rainbowHue = frac(atan2(hueVector.y, hueVector.x) * 0.15915494 + 0.5);
+                    float rainbowAmount = contour * rainbowField.b * 0.96;
+                    color = lerp(color, hsvToRgb(rainbowHue), rainbowAmount);
+                }
 
                 // Keep the accent on the fixed psi=0 contour set by Current Origin.
                 // The sphere changes the sampled field and bends this contour, but

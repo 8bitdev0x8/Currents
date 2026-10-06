@@ -12,9 +12,11 @@ public sealed class FluidSimulation2D : MonoBehaviour
     private int stride;
     private int arrayLength;
     private float cellSize;
+    private float domainSize;
     private float originX;
     private float originZ;
-    private float surfaceHeight;
+    private Transform surfaceTransform;
+    private Vector3 surfaceScale;
     private float accumulator;
     private float ambientX;
     private float ambientZ;
@@ -38,6 +40,7 @@ public sealed class FluidSimulation2D : MonoBehaviour
     private bool velocityInitialized;
     private bool initialized;
     private bool rainbowEmitterInitialized;
+    private bool rainbowEnabled;
 
     private float[] u;
     private float[] v;
@@ -63,6 +66,7 @@ public sealed class FluidSimulation2D : MonoBehaviour
 
     public Texture2D FieldTexture => fieldTexture;
     public Texture2D RainbowTexture => rainbowTexture;
+    public Vector4 FieldBounds => new Vector4(originX, originZ, domainSize, domainSize);
 
     public void Initialize(Renderer surface)
     {
@@ -70,13 +74,21 @@ public sealed class FluidSimulation2D : MonoBehaviour
 
         stride = Resolution + 2;
         arrayLength = stride * stride;
-        Bounds bounds = surface.bounds;
-        cellSize = Mathf.Max(bounds.size.x, bounds.size.z) / Resolution;
-        cellSize = Mathf.Max(cellSize, 0.01f);
-        float domainSize = cellSize * Resolution;
-        originX = bounds.center.x - domainSize * 0.5f;
-        originZ = bounds.center.z - domainSize * 0.5f;
-        surfaceHeight = surface.transform.position.y;
+        surfaceTransform = surface.transform;
+        surfaceScale = surfaceTransform.lossyScale;
+        surfaceScale = new Vector3(Mathf.Abs(surfaceScale.x), Mathf.Abs(surfaceScale.y), Mathf.Abs(surfaceScale.z));
+        MeshFilter meshFilter = surface.GetComponent<MeshFilter>();
+        Bounds localBounds = meshFilter != null && meshFilter.sharedMesh != null
+            ? meshFilter.sharedMesh.bounds
+            : new Bounds(Vector3.zero, new Vector3(surface.bounds.size.x / Mathf.Max(surfaceScale.x, 0.0001f), 0.1f,
+                                                  surface.bounds.size.z / Mathf.Max(surfaceScale.z, 0.0001f)));
+        float width = localBounds.size.x * surfaceScale.x;
+        float depth = localBounds.size.z * surfaceScale.z;
+        domainSize = Mathf.Max(width, depth);
+        cellSize = Mathf.Max(domainSize / Resolution, 0.01f);
+        domainSize = cellSize * Resolution;
+        originX = localBounds.center.x * surfaceScale.x - domainSize * 0.5f;
+        originZ = localBounds.center.z * surfaceScale.z - domainSize * 0.5f;
 
         u = new float[arrayLength];
         v = new float[arrayLength];
@@ -128,7 +140,8 @@ public sealed class FluidSimulation2D : MonoBehaviour
         float simulationRate,
         float flowRecoveryRate,
         float currentRainbowFadeDistance,
-        float currentRainbowCycleLength)
+        float currentRainbowCycleLength,
+        bool currentRainbowEnabled)
     {
         if (!initialized || ball == null) return;
 
@@ -139,14 +152,24 @@ public sealed class FluidSimulation2D : MonoBehaviour
         wakeStrength = Mathf.Max(currentWakeStrength, 0f);
         wakeViolence = Mathf.Max(currentWakeViolence, 0.1f);
         normalFlowRecovery = Mathf.Max(flowRecoveryRate, 0f);
-        ballX = ball.transform.position.x;
-        ballZ = ball.transform.position.z;
-        ballVelocityX = ball.Velocity.x;
-        ballVelocityZ = ball.Velocity.z;
+        Vector3 ballLocal = surfaceTransform.InverseTransformPoint(ball.transform.position);
+        Vector3 localVelocity = surfaceTransform.InverseTransformVector(ball.Velocity);
+        ballX = ballLocal.x * surfaceScale.x;
+        ballZ = ballLocal.z * surfaceScale.z;
+        ballVelocityX = localVelocity.x * surfaceScale.x;
+        ballVelocityZ = localVelocity.z * surfaceScale.z;
         currentOriginX = currentOrigin.x;
         currentOriginZ = currentOrigin.y;
         rainbowFadeDistance = Mathf.Max(currentRainbowFadeDistance, 0.1f);
         rainbowCycleLength = Mathf.Max(currentRainbowCycleLength, 0.1f);
+        if (rainbowEnabled && !currentRainbowEnabled)
+            ClearRainbowField();
+        if (!rainbowEnabled && currentRainbowEnabled)
+        {
+            previousBallX = ballX;
+            previousBallZ = ballZ;
+        }
+        rainbowEnabled = currentRainbowEnabled;
         if (!rainbowEmitterInitialized)
         {
             previousBallX = ballX;
@@ -171,7 +194,7 @@ public sealed class FluidSimulation2D : MonoBehaviour
         }
 
         float radius = Mathf.Max(ball.Radius, 0.01f);
-        float verticalOffset = ball.transform.position.y - surfaceHeight;
+        float verticalOffset = Vector3.Dot(ball.transform.position - surfaceTransform.position, surfaceTransform.up);
         contact = Mathf.Sqrt(Mathf.Clamp01(1f - (verticalOffset * verticalOffset) / (radius * radius)));
         obstacleRadius = radius * contact;
 
@@ -217,7 +240,7 @@ public sealed class FluidSimulation2D : MonoBehaviour
         ApplySolidVelocity();
         AddVorticityConfinement(dt);
         Project();
-        AdvectRainbow(dt);
+        if (rainbowEnabled) AdvectRainbow(dt);
     }
 
     private void BuildObstacleMask()
@@ -585,6 +608,17 @@ public sealed class FluidSimulation2D : MonoBehaviour
         }
         rainbowTexture.SetPixels(rainbowPixels);
         rainbowTexture.Apply(false, false);
+    }
+
+    private void ClearRainbowField()
+    {
+        System.Array.Clear(rainbowCos, 0, arrayLength);
+        System.Array.Clear(rainbowSin, 0, arrayLength);
+        System.Array.Clear(rainbowStrength, 0, arrayLength);
+        System.Array.Clear(rainbowCosNext, 0, arrayLength);
+        System.Array.Clear(rainbowSinNext, 0, arrayLength);
+        System.Array.Clear(rainbowStrengthNext, 0, arrayLength);
+        UploadRainbowField();
     }
 
     private float NeighborVelocity(float[] field, int x, int z, float ambientBoundary)

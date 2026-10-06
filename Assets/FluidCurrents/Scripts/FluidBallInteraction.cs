@@ -28,7 +28,7 @@ public class FluidBallInteraction : MonoBehaviour
         if (sceneCamera == null) sceneCamera = FindObjectOfType<Camera>();
         GameObject surface = GameObject.Find("Fluid Surface");
         if (surface != null) surfaceRenderer = surface.GetComponent<Renderer>();
-        targetHeight = transform.position.y;
+        targetHeight = PlaneOffset(transform.position);
         lastPosition = transform.position;
     }
 
@@ -39,8 +39,8 @@ public class FluidBallInteraction : MonoBehaviour
             UpdateDragging();
         }
 
-        float height = Mathf.SmoothDamp(transform.position.y, targetHeight, ref heightSmoothVelocity, heightSmoothTime);
-        transform.position = ConstrainToSurface(new Vector3(transform.position.x, height, transform.position.z));
+        float height = Mathf.SmoothDamp(PlaneOffset(transform.position), targetHeight, ref heightSmoothVelocity, heightSmoothTime);
+        transform.position = ConstrainToSurface(transform.position) + PlaneNormal() * height;
 
         float deltaTime = Mathf.Max(Time.deltaTime, 0.0001f);
         Vector3 measuredVelocity = Vector3.ClampMagnitude((transform.position - lastPosition) / deltaTime, 8f);
@@ -58,15 +58,23 @@ public class FluidBallInteraction : MonoBehaviour
         }
         if (surfaceRenderer == null) return position;
 
-        Bounds bounds = surfaceRenderer.bounds;
-        float radius = Radius;
-        float minX = bounds.min.x + radius;
-        float maxX = bounds.max.x - radius;
-        float minZ = bounds.min.z + radius;
-        float maxZ = bounds.max.z - radius;
-        position.x = minX <= maxX ? Mathf.Clamp(position.x, minX, maxX) : bounds.center.x;
-        position.z = minZ <= maxZ ? Mathf.Clamp(position.z, minZ, maxZ) : bounds.center.z;
-        return position;
+        Transform surface = surfaceRenderer.transform;
+        MeshFilter meshFilter = surfaceRenderer.GetComponent<MeshFilter>();
+        Bounds bounds = meshFilter != null && meshFilter.sharedMesh != null
+            ? meshFilter.sharedMesh.bounds
+            : new Bounds(Vector3.zero, new Vector3(10f, 0.1f, 10f));
+        Vector3 scale = surface.lossyScale;
+        Vector3 local = surface.InverseTransformPoint(position);
+        float localRadiusX = Radius / Mathf.Max(Mathf.Abs(scale.x), 0.0001f);
+        float localRadiusZ = Radius / Mathf.Max(Mathf.Abs(scale.z), 0.0001f);
+        float minX = bounds.min.x + localRadiusX;
+        float maxX = bounds.max.x - localRadiusX;
+        float minZ = bounds.min.z + localRadiusZ;
+        float maxZ = bounds.max.z - localRadiusZ;
+        local.x = minX <= maxX ? Mathf.Clamp(local.x, minX, maxX) : bounds.center.x;
+        local.z = minZ <= maxZ ? Mathf.Clamp(local.z, minZ, maxZ) : bounds.center.z;
+        local.y = 0f;
+        return surface.TransformPoint(local);
     }
 
     private void UpdateDragging()
@@ -77,7 +85,7 @@ public class FluidBallInteraction : MonoBehaviour
             Ray pickRay = sceneCamera.ScreenPointToRay(Input.mousePosition);
             if (Physics.Raycast(pickRay, out RaycastHit pick) && pick.collider.gameObject == gameObject)
             {
-                dragPlane = new Plane(Vector3.up, new Vector3(0f, transform.position.y, 0f));
+                dragPlane = new Plane(PlaneNormal(), transform.position);
                 if (dragPlane.Raycast(pickRay, out float pickDistance))
                 {
                     grabOffset = transform.position - pickRay.GetPoint(pickDistance);
@@ -94,9 +102,19 @@ public class FluidBallInteraction : MonoBehaviour
             if (dragPlane.Raycast(ray, out float distance))
             {
                 Vector3 hit = ray.GetPoint(distance) + grabOffset;
-                transform.position = new Vector3(hit.x, transform.position.y, hit.z);
+                transform.position = ConstrainToSurface(hit) + PlaneNormal() * PlaneOffset(transform.position);
             }
         }
+    }
 
+    private Vector3 PlaneNormal()
+    {
+        return surfaceRenderer != null ? surfaceRenderer.transform.up : Vector3.up;
+    }
+
+    private float PlaneOffset(Vector3 position)
+    {
+        if (surfaceRenderer == null) return position.y;
+        return Vector3.Dot(position - surfaceRenderer.transform.position, surfaceRenderer.transform.up);
     }
 }
