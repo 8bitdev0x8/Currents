@@ -53,12 +53,14 @@ public class FluidCurrentDemo : MonoBehaviour
     private Renderer surfaceRenderer;
     private Material runtimeSurfaceMaterial;
     private FluidBallInteraction ball;
+    private FluidBallTrail sphereTrail;
     private FluidSimulation2D simulation;
     private bool settingFlowDirection;
     private Vector3 flowDirectionDragStart;
     private float displayedFps;
     private GUIStyle fpsStyle;
     private GUIStyle overlayButtonStyle;
+    private GUIStyle restoreButtonStyle;
     private GUIStyle overlaySectionStyle;
     private GUIStyle overlayLabelStyle;
     private GUIStyle overlayValueStyle;
@@ -96,6 +98,12 @@ public class FluidCurrentDemo : MonoBehaviour
         GameObject surface = GameObject.Find("Fluid Surface");
         surfaceRenderer = surface != null ? surface.GetComponent<Renderer>() : null;
         ball = FindObjectOfType<FluidBallInteraction>();
+        if (ball != null && surfaceRenderer != null)
+        {
+            sphereTrail = ball.GetComponent<FluidBallTrail>();
+            if (sphereTrail == null) sphereTrail = ball.gameObject.AddComponent<FluidBallTrail>();
+            sphereTrail.Initialize(surfaceRenderer);
+        }
         EnsureSimulation();
     }
 
@@ -129,8 +137,6 @@ public class FluidCurrentDemo : MonoBehaviour
         runtimeSurfaceMaterial.SetFloat("_RedLineWidth", redLineWidth);
         runtimeSurfaceMaterial.SetFloat("_BlackLineWidth", blackLineWidth);
         runtimeSurfaceMaterial.SetFloat("_EdgeFadeDistance", edgeFadeDistance);
-        runtimeSurfaceMaterial.SetFloat("_RainbowFadeDistance", rainbowFadeDistance);
-        runtimeSurfaceMaterial.SetFloat("_RainbowCycleLength", rainbowCycleLength);
         runtimeSurfaceMaterial.SetFloat("_ElapsedTime", Time.time);
     }
 
@@ -169,6 +175,14 @@ public class FluidCurrentDemo : MonoBehaviour
         GUILayout.BeginArea(new Rect(28f, 88f, panelWidth - 44f, panelHeight - 42f));
         overlayScroll = GUILayout.BeginScrollView(overlayScroll);
 
+        GUILayout.BeginHorizontal();
+        GUILayout.Label("ADJUST SETTINGS", overlaySectionStyle);
+        GUILayout.FlexibleSpace();
+        if (GUILayout.Button("RESTORE DEFAULTS", restoreButtonStyle, GUILayout.Width(126f), GUILayout.Height(25f)))
+            RestoreDefaultValues();
+        GUILayout.EndHorizontal();
+        GUILayout.Space(8f);
+
         if (showFlowVelocityInOverlay) DrawOverlaySlider("Flow velocity", ref flowVelocity, 0.1f, 4f);
         if (showViscosityInOverlay) DrawOverlaySlider("Kinematic viscosity", ref kinematicViscosity, 0.001f, 0.15f);
         if (showWakeStrengthInOverlay) DrawOverlaySlider("Wake strength", ref wakeStrength, 0f, 2f);
@@ -178,7 +192,7 @@ public class FluidCurrentDemo : MonoBehaviour
         if (showRedLineWidthInOverlay) DrawOverlaySlider("Red line width", ref redLineWidth, 0.02f, 0.4f);
         if (showBlackLineWidthInOverlay) DrawOverlaySlider("Black line width", ref blackLineWidth, 0f, 0.2f);
         if (showEdgeFadeInOverlay) DrawOverlaySlider("Edge fade distance", ref edgeFadeDistance, 1f, 40f);
-        if (showRainbowFadeInOverlay) DrawOverlaySlider("Rainbow fade distance", ref rainbowFadeDistance, 8f, 60f);
+        if (showRainbowFadeInOverlay) DrawOverlaySlider("Rainbow trail length", ref rainbowFadeDistance, 8f, 60f);
         if (showRainbowCycleInOverlay) DrawOverlaySlider("Rainbow cycle length", ref rainbowCycleLength, 4f, 40f);
         if (showSimulationRateInOverlay) DrawOverlaySlider("Simulation rate", ref simulationRate, 15f, 60f);
         if (showFlowRecoveryInOverlay) DrawRecoverySlider();
@@ -208,6 +222,16 @@ public class FluidCurrentDemo : MonoBehaviour
             padding = new RectOffset(14, 10, 5, 5),
             normal = { background = panelTexture, textColor = new Color(0.95f, 0.82f, 1f) },
             hover = { background = hoverTexture, textColor = Color.white },
+            active = { background = hoverTexture, textColor = Color.white }
+        };
+        restoreButtonStyle = new GUIStyle(GUI.skin.button)
+        {
+            alignment = TextAnchor.MiddleCenter,
+            fontSize = 9,
+            fontStyle = FontStyle.Bold,
+            padding = new RectOffset(5, 5, 3, 3),
+            normal = { background = accentTexture, textColor = new Color(0.08f, 0.035f, 0.01f) },
+            hover = { background = hoverTexture, textColor = new Color(1f, 0.78f, 0.38f) },
             active = { background = hoverTexture, textColor = Color.white }
         };
         overlaySectionStyle = new GUIStyle(GUI.skin.label)
@@ -301,6 +325,31 @@ public class FluidCurrentDemo : MonoBehaviour
         GUILayout.EndVertical();
     }
 
+    private void RestoreDefaultValues()
+    {
+        deepColor = new Color(0.004f, 0.003f, 0.008f);
+        purpleColor = new Color(0.16f, 0.055f, 0.21f);
+        lineColor = new Color(0.86f, 0.72f, 0.94f);
+        redCurrent = new Color(1f, 0f, 0f);
+        goldCurrent = new Color(1f, 0.52f, 0f);
+        flowVelocity = 1f;
+        kinematicViscosity = 0.028f;
+        lineFrequency = 4.49f;
+        wakeStrength = 2f;
+        wakeViolence = 3f;
+        lineWidth = 0.045f;
+        redLineWidth = 0.16f;
+        blackLineWidth = 0.04f;
+        edgeFadeDistance = 12f;
+        rainbowFadeDistance = 36f;
+        rainbowCycleLength = 14f;
+        simulationRate = 30f;
+        normalFlowRecovery = 0.001f;
+        flowDirection = new Vector2(0.22f, -0.41f);
+        currentOriginXZ = new Vector2(0.22f, 8f);
+        if (targetCamera != null) targetCamera.backgroundColor = deepColor;
+    }
+
     private void HandleFlowDirectionInput()
     {
         if (surfaceRenderer == null || targetCamera == null) return;
@@ -365,10 +414,11 @@ public class FluidCurrentDemo : MonoBehaviour
         EnsureSimulation();
         simulation.Advance(Time.deltaTime, ball, flowDirection, flowVelocity, kinematicViscosity,
             wakeStrength, wakeViolence, currentOriginXZ, simulationRate, normalFlowRecovery);
+        if (sphereTrail != null)
+            sphereTrail.UpdateTrail(surfaceRenderer, rainbowFadeDistance, rainbowCycleLength);
         Bounds bounds = surfaceRenderer.bounds;
         runtimeSurfaceMaterial.SetVector("_FieldBounds",
             new Vector4(bounds.min.x, bounds.min.z, bounds.size.x, bounds.size.z));
-        runtimeSurfaceMaterial.SetVector("_BallPosition", ball.transform.position);
         runtimeSurfaceMaterial.SetTexture("_FlowField", simulation.FieldTexture);
     }
 }
