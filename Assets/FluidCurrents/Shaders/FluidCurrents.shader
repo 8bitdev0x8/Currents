@@ -14,6 +14,7 @@ Shader "FluidCurrents/World Surface"
         _LineWidth ("Streamline width", Range(0.005, 0.2)) = 0.045
         _RedLineWidth ("Red current width", Range(0.02, 0.4)) = 0.16
         _BlackLineWidth ("Black outline width", Range(0, 0.2)) = 0.04
+        _EdgeFadeDistance ("Surface edge fade distance", Range(1, 40)) = 12
         _BallRadius ("Sphere radius", Float) = 1.5
         _FieldBounds ("Flow field world bounds", Vector) = (-30, -20, 60, 60)
         _ElapsedTime ("Elapsed time", Float) = 0
@@ -45,6 +46,7 @@ Shader "FluidCurrents/World Surface"
             float _LineWidth;
             float _RedLineWidth;
             float _BlackLineWidth;
+            float _EdgeFadeDistance;
             float _BallRadius;
             float _ElapsedTime;
             sampler2D _FlowField;
@@ -110,12 +112,17 @@ Shader "FluidCurrents/World Surface"
                 float3 accent = lerp(_RedCurrent.rgb, _GoldCurrent.rgb, goldBlend);
                 color = lerp(color, accent, stripe * 0.96);
 
-                // Contact shadow and distance haze give the flat field perspective depth.
+                // Fade the finite plane perimeter and distant surface into the camera's
+                // deep-color background so its rectangular edge does not read as a cutout.
                 color *= 1.0 - obstacle * 0.5;
-                float haze = smoothstep(25.0, 95.0, input.eyeDepth);
-                color = lerp(color, _Deep.rgb * 0.55, haze);
                 float grain = hash21(floor(world * 95.0 + _ElapsedTime * 0.1)) - 0.5;
                 color += grain * 0.018;
+                float2 edgeFromMin = world - _FieldBounds.xy;
+                float2 edgeFromMax = _FieldBounds.xy + _FieldBounds.zw - world;
+                float edgeDistance = min(min(edgeFromMin.x, edgeFromMin.y), min(edgeFromMax.x, edgeFromMax.y));
+                float edgeFade = smoothstep(0.0, max(_EdgeFadeDistance, 0.01), edgeDistance);
+                float distanceFade = 1.0 - smoothstep(25.0, 95.0, input.eyeDepth);
+                color = lerp(_Deep.rgb, color, edgeFade * distanceFade);
                 return fixed4(saturate(color), 1);
             }
             ENDCG

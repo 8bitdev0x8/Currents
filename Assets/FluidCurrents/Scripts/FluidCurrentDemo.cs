@@ -21,6 +21,7 @@ public class FluidCurrentDemo : MonoBehaviour
     [Range(0.005f, 0.2f)] public float lineWidth = 0.045f;
     [Range(0.02f, 0.4f)] public float redLineWidth = 0.16f;
     [Range(0f, 0.2f)] public float blackLineWidth = 0.04f;
+    [Range(1f, 40f)] public float edgeFadeDistance = 12f;
     public Vector2 flowDirection = new Vector2(0.22f, -0.41f);
 
     [Header("Fixed accent current")]
@@ -83,6 +84,7 @@ public class FluidCurrentDemo : MonoBehaviour
         runtimeSurfaceMaterial.SetFloat("_LineWidth", lineWidth);
         runtimeSurfaceMaterial.SetFloat("_RedLineWidth", redLineWidth);
         runtimeSurfaceMaterial.SetFloat("_BlackLineWidth", blackLineWidth);
+        runtimeSurfaceMaterial.SetFloat("_EdgeFadeDistance", edgeFadeDistance);
         runtimeSurfaceMaterial.SetFloat("_ElapsedTime", Time.time);
     }
 
