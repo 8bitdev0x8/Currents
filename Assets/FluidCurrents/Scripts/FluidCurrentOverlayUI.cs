@@ -330,7 +330,7 @@ public sealed class FluidCurrentOverlayUI : MonoBehaviour
         Text text = textObject.GetComponent<Text>();
         text.font = ResolveFont();
         text.text = value;
-        text.fontSize = size;
+        text.fontSize = Mathf.RoundToInt(size);
         text.color = color;
         text.alignment = alignment;
         text.fontStyle = style;
