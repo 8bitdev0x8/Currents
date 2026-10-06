@@ -134,14 +134,14 @@ public sealed class FluidSimulation2D : MonoBehaviour
 
         accumulator += Mathf.Clamp(deltaTime, 0f, 0.1f);
         int steps = 0;
-        while (accumulator >= FixedStep && steps < 3)
+        while (accumulator >= fixedStep && steps < 3)
         {
-            SimulateStep(FixedStep);
-            accumulator -= FixedStep;
+            SimulateStep(fixedStep);
+            accumulator -= fixedStep;
             steps++;
         }
 
-        if (steps == 3 && accumulator >= FixedStep)
+        if (steps == 3 && accumulator >= fixedStep)
             accumulator = 0f;
 
         // These are the expensive field reconstruction and GPU upload stages.
