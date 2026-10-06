@@ -3,11 +3,11 @@ using UnityEngine;
 /// <summary>A 2D incompressible Navier-Stokes solver on a cell-centered grid.</summary>
 public sealed class FluidSimulation2D : MonoBehaviour
 {
-    private const int Resolution = 128;
-    private const int PressureIterations = 20;
-    private const int DiffusionIterations = 6;
-    private const int StreamfunctionIterations = 24;
-    private const float FixedStep = 1f / 45f;
+    private const int Resolution = 96;
+    private const int PressureIterations = 14;
+    private const int DiffusionIterations = 4;
+    private const int StreamfunctionIterations = 20;
+    private float fixedStep = 1f / 30f;
 
     private int stride;
     private int arrayLength;
@@ -93,7 +93,8 @@ public sealed class FluidSimulation2D : MonoBehaviour
         float kinematicViscosity,
         float currentWakeStrength,
         float currentWakeViolence,
-        Vector2 currentOrigin)
+        Vector2 currentOrigin,
+        float simulationRate)
     {
         if (!initialized || ball == null) return;
 
@@ -109,6 +110,7 @@ public sealed class FluidSimulation2D : MonoBehaviour
         ballVelocityZ = ball.Velocity.z;
         currentOriginX = currentOrigin.x;
         currentOriginZ = currentOrigin.y;
+        fixedStep = 1f / Mathf.Clamp(simulationRate, 15f, 60f);
         bool firstVelocityFrame = !velocityInitialized;
         if (!velocityInitialized)
         {
