@@ -4,10 +4,10 @@ using UnityEngine;
 public sealed class FluidSimulation2D : MonoBehaviour
 {
     private const int Resolution = 128;
-    private const int PressureIterations = 32;
-    private const int DiffusionIterations = 8;
-    private const int StreamfunctionIterations = 36;
-    private const float FixedStep = 1f / 60f;
+    private const int PressureIterations = 20;
+    private const int DiffusionIterations = 6;
+    private const int StreamfunctionIterations = 24;
+    private const float FixedStep = 1f / 45f;
 
     private int stride;
     private int arrayLength;
@@ -109,6 +109,7 @@ public sealed class FluidSimulation2D : MonoBehaviour
         ballVelocityZ = ball.Velocity.z;
         currentOriginX = currentOrigin.x;
         currentOriginZ = currentOrigin.y;
+        bool firstVelocityFrame = !velocityInitialized;
         if (!velocityInitialized)
         {
             for (int z = 1; z <= Resolution; z++)
@@ -141,8 +142,13 @@ public sealed class FluidSimulation2D : MonoBehaviour
         if (steps == 3 && accumulator >= FixedStep)
             accumulator = 0f;
 
-        ComputeStreamfunction();
-        UploadField();
+        // These are the expensive field reconstruction and GPU upload stages.
+        // Skip them on render frames where the 30 Hz fluid step did not advance.
+        if (steps > 0 || firstVelocityFrame)
+        {
+            ComputeStreamfunction();
+            UploadField();
+        }
     }
 
     private void SimulateStep(float dt)

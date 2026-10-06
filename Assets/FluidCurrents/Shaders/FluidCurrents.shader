@@ -15,7 +15,6 @@ Shader "FluidCurrents/World Surface"
         _RedLineWidth ("Red current width", Range(0.02, 0.4)) = 0.16
         _BlackLineWidth ("Black outline width", Range(0, 0.2)) = 0.04
         _BallRadius ("Sphere radius", Float) = 1.5
-        _BallPosition ("Sphere world position", Vector) = (0, 0, 8, 0)
         _FieldBounds ("Flow field world bounds", Vector) = (-30, -20, 60, 60)
         _ElapsedTime ("Elapsed time", Float) = 0
         [NoScaleOffset] _FlowField ("Simulated flow field", 2D) = "black" {}
@@ -47,7 +46,6 @@ Shader "FluidCurrents/World Surface"
             float _RedLineWidth;
             float _BlackLineWidth;
             float _BallRadius;
-            float4 _BallPosition;
             float _ElapsedTime;
             sampler2D _FlowField;
 
@@ -77,7 +75,6 @@ Shader "FluidCurrents/World Surface"
             {
                 float2 world = input.worldPos.xz;
                 float2 flow = normalize(_FlowDirection.xy);
-                float2 side = float2(-flow.y, flow.x);
                 float radius = max(_BallRadius, 0.01);
                 float speed = max(_FlowVelocity, 0.01);
                 float2 fieldUv = (world - _FieldBounds.xy) / max(_FieldBounds.zw, float2(0.0001, 0.0001));
@@ -100,12 +97,10 @@ Shader "FluidCurrents/World Surface"
                 color = lerp(color, float3(0.0, 0.0, 0.0), contourShadow * 0.92);
                 color = lerp(color, _Line.rgb, contour * (0.58 + fill * 0.38 + turbulence * 0.18));
 
-                // The accent uses one contour from the numerical solver's streamfunction field.
-                // The solver fixes psi=0 at Current Origin; the sphere boundary is
-                // a constant-streamfunction contour at this value, so the accent
-                // now follows the actual computed flow around and behind it.
-                float spherePsi = speed * dot(_BallPosition.xz - _CurrentOrigin.xy, side);
-                float currentTarget = spherePsi;
+                // Keep the accent on the fixed psi=0 contour set by Current Origin.
+                // The sphere changes the sampled field and bends this contour, but
+                // moving the sphere cannot translate the accent's upstream path.
+                float currentTarget = 0.0;
                 float stripeDistance = abs(psi - currentTarget) / speed;
                 float stripeEdge = max(fwidth(stripeDistance), 0.0005);
                 float stripeShadow = 1.0 - smoothstep(_RedLineWidth + _BlackLineWidth, _RedLineWidth + _BlackLineWidth + stripeEdge, stripeDistance);
