@@ -14,6 +14,7 @@ Shader "FluidCurrents/World Surface"
         _Viscosity ("Kinematic viscosity", Float) = 0.028
         _LineFrequency ("Line frequency", Float) = 4.49
         _LineWidth ("Streamline width", Range(0.005, 0.2)) = 0.045
+        _RedLineWidth ("Red current width", Range(0.02, 0.4)) = 0.16
         _WakeStrength ("Wake strength", Float) = 2
         _BallPosition ("Sphere position", Vector) = (0, 1.5, 8, 0)
         _BallRadius ("Sphere radius", Float) = 1.5
@@ -45,6 +46,7 @@ Shader "FluidCurrents/World Surface"
             float _Viscosity;
             float _LineFrequency;
             float _LineWidth;
+            float _RedLineWidth;
             float _WakeStrength;
             float4 _BallPosition;
             float _BallRadius;
@@ -147,6 +149,8 @@ Shader "FluidCurrents/World Surface"
                 float contour = 1.0 - smoothstep(_LineWidth, _LineWidth + contourEdge, contourDistance);
                 float fill = smoothstep(0.14, 0.88, fieldNoise);
                 float3 color = lerp(_Deep.rgb, _Purple.rgb, 0.25 + fill * 0.55);
+                float contourShadow = 1.0 - smoothstep(_LineWidth * 1.75, _LineWidth * 1.75 + contourEdge, contourDistance);
+                color = lerp(color, float3(0.0, 0.0, 0.0), contourShadow * 0.92);
                 color = lerp(color, _Line.rgb, contour * (0.58 + fill * 0.38));
 
                 // Accent one of the same streamfunction contours so it bends with the sphere and wake.
@@ -154,7 +158,9 @@ Shader "FluidCurrents/World Surface"
                 float currentTarget = -speed * radius * 1.05;
                 float stripeDistance = abs(psi - currentTarget) / speed;
                 float stripeEdge = max(fwidth(stripeDistance), 0.0005);
-                float stripe = 1.0 - smoothstep(_LineWidth * 1.7, _LineWidth * 1.7 + stripeEdge, stripeDistance);
+                float stripeShadow = 1.0 - smoothstep(_RedLineWidth * 1.55, _RedLineWidth * 1.55 + stripeEdge, stripeDistance);
+                color = lerp(color, float3(0.0, 0.0, 0.0), stripeShadow * 0.96);
+                float stripe = 1.0 - smoothstep(_RedLineWidth, _RedLineWidth + stripeEdge, stripeDistance);
                 float goldBlend = smoothstep(radius * 2.5, radius * 11.0, currentAlong);
                 float3 accent = lerp(_RedCurrent.rgb, _GoldCurrent.rgb, goldBlend);
                 color = lerp(color, accent, stripe * 0.96);

@@ -286,6 +286,7 @@ MonoBehaviour:
   lineFrequency: 4.49
   wakeStrength: 2
   lineWidth: 0.045
+  redLineWidth: 0.16
   flowDirection: {x: 0.22, y: -0.41}
   currentOriginXZ: {x: 0.22, y: 8}
 --- !u!81 &811440365
