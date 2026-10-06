@@ -8,6 +8,7 @@ Shader "FluidCurrents/World Surface"
         _RedCurrent ("Vermilion current", Color) = (0.96, 0.035, 0.075, 1)
         _GoldCurrent ("Amber current", Color) = (1, 0.44, 0.035, 1)
         _FlowDirection ("Flow direction", Vector) = (0.88, -0.47, 0, 0)
+        _CurrentOrigin ("Fixed current origin", Vector) = (0, 8, 0, 0)
         _FlowVelocity ("Flow velocity", Float) = 2.6
         _Strouhal ("Strouhal number", Float) = 0.2
         _Viscosity ("Kinematic viscosity", Float) = 0.025
@@ -37,6 +38,7 @@ Shader "FluidCurrents/World Surface"
             fixed4 _RedCurrent;
             fixed4 _GoldCurrent;
             float4 _FlowDirection;
+            float4 _CurrentOrigin;
             float _FlowVelocity;
             float _Strouhal;
             float _Viscosity;
@@ -133,9 +135,13 @@ Shader "FluidCurrents/World Surface"
                 float3 color = lerp(_Deep.rgb, _Purple.rgb, 0.25 + fill * 0.55);
                 color = lerp(color, _Line.rgb, contour * (0.58 + fill * 0.38));
 
-                float stripeTarget = -speed * radius * 1.05;
-                float stripe = 1.0 - smoothstep(speed * radius * 0.035, speed * radius * 0.09, abs(psi - stripeTarget));
-                float goldBlend = smoothstep(radius * 2.5, radius * 11.0, along);
+                // Anchor the red/gold accent in world space so moving the sphere only changes its wake.
+                float2 currentRelative = world - _CurrentOrigin.xy;
+                float currentAlong = dot(currentRelative, flow);
+                float currentAcross = dot(currentRelative, side);
+                float currentCurve = -radius * 1.05 + sin(currentAlong * 0.075) * radius * 0.14;
+                float stripe = 1.0 - smoothstep(radius * 0.035, radius * 0.09, abs(currentAcross - currentCurve));
+                float goldBlend = smoothstep(radius * 2.5, radius * 11.0, currentAlong);
                 float3 accent = lerp(_RedCurrent.rgb, _GoldCurrent.rgb, goldBlend);
                 color = lerp(color, accent, stripe * 0.96);
 

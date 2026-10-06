@@ -19,6 +19,9 @@ public class FluidCurrentDemo : MonoBehaviour
     [Range(0f, 2f)] public float wakeStrength = 1f;
     public Vector2 flowDirection = new Vector2(0.88f, -0.47f);
 
+    [Header("Fixed accent current")]
+    public Vector2 currentOriginXZ = new Vector2(0f, 8f);
+
     private Camera targetCamera;
     private Renderer surfaceRenderer;
     private Material runtimeSurfaceMaterial;
@@ -58,6 +61,7 @@ public class FluidCurrentDemo : MonoBehaviour
         runtimeSurfaceMaterial.SetColor("_RedCurrent", redCurrent);
         runtimeSurfaceMaterial.SetColor("_GoldCurrent", goldCurrent);
         runtimeSurfaceMaterial.SetVector("_FlowDirection", new Vector4(direction.x, direction.y, 0f, 0f));
+        runtimeSurfaceMaterial.SetVector("_CurrentOrigin", new Vector4(currentOriginXZ.x, currentOriginXZ.y, 0f, 0f));
         runtimeSurfaceMaterial.SetVector("_BallPosition", ball.transform.position);
         runtimeSurfaceMaterial.SetFloat("_BallRadius", ball.Radius);
         runtimeSurfaceMaterial.SetFloat("_FlowVelocity", flowVelocity);
