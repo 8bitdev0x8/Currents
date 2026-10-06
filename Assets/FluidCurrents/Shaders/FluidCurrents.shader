@@ -18,6 +18,7 @@ Shader "FluidCurrents/World Surface"
         _BlackLineWidth ("Black outline width", Range(0, 0.2)) = 0.04
         _WakeStrength ("Wake strength", Float) = 2
         _WakeViolence ("Wake violence", Range(0.5, 5)) = 3
+        _BallMotion ("Sphere motion", Float) = 0
         _BallPosition ("Sphere position", Vector) = (0, 1.5, 8, 0)
         _BallRadius ("Sphere radius", Float) = 1.5
         _ElapsedTime ("Elapsed time", Float) = 0
@@ -52,6 +53,7 @@ Shader "FluidCurrents/World Surface"
             float _BlackLineWidth;
             float _WakeStrength;
             float _WakeViolence;
+            float _BallMotion;
             float4 _BallPosition;
             float _BallRadius;
             float _ElapsedTime;
@@ -115,21 +117,26 @@ Shader "FluidCurrents/World Surface"
 
                 // Keep the background streamlines fixed in world space and localize sphere influence.
                 float r2 = max(along * along + across * across, radius * radius * 0.72);
-                float potentialPsi = speed * across * (1.0 - radius * radius / r2);
-                float localFalloff = exp(-dot(relative, relative) / (radius * radius * 18.0));
-                float psi = speed * fixedAcross + (potentialPsi - speed * across) * localFalloff;
+                float flowWave = 0.16 * sin(fixedAlong * 0.65 - _ElapsedTime * speed * 0.9);
+                float potentialSpeed = speed * (1.0 + saturate(_BallMotion) * 1.5);
+                float potentialPsi = potentialSpeed * across * (1.0 - radius * radius / r2);
+                float surfaceInfluence = exp(-abs(_BallPosition.y) / max(radius * 2.0, 0.01));
+                float localFalloff = exp(-dot(relative, relative) / (radius * radius * 9.0)) * surfaceInfluence;
+                float psi = speed * (fixedAcross + flowWave)
+                          + (potentialPsi - speed * (across + flowWave)) * localFalloff;
 
                 // Alternating Gaussian-core vortices, shed at f = St * U / D.
                 float halfPeriod = radius / max(_Strouhal * speed, 0.01);
                 float phase = frac(_ElapsedTime / halfPeriod);
                 float cycle = floor(_ElapsedTime / halfPeriod);
-                float spacing = 0.86 * speed * halfPeriod;
-                float circulation = 2.2 * speed * (2.0 * radius) * _WakeViolence;
+                float convectiveSpeed = speed * (1.0 + saturate(_BallMotion) * 0.65);
+                float motionAmplifier = 1.0 + saturate(_BallMotion) * 2.0;
+                float circulation = 2.2 * convectiveSpeed * (2.0 * radius) * _WakeViolence * motionAmplifier;
                 float wake = 0;
                 [unroll] for (int i = 0; i < 8; i++)
                 {
                     float age = (i + phase) * halfPeriod;
-                    float shedDistance = radius * 1.08 + age * 0.86 * speed;
+                    float shedDistance = radius * 1.08 + age * 0.86 * convectiveSpeed;
                     float parity = frac((i + cycle) * 0.5) * 2.0;
                     float vortexSign = parity < 1.0 ? 1.0 : -1.0;
                     float lateral = vortexSign * radius * (0.52 + 0.04 * _WakeViolence * sin(age * speed / radius));
@@ -140,13 +147,13 @@ Shader "FluidCurrents/World Surface"
                     wake += vortexSign * circulation * 0.0796 * log(1.0 + dot(d, d) / max(core2, 0.0001)) * attenuation;
                 }
                 float wakeSpread = sqrt(max(_WakeViolence, 0.01));
-                float wakeWidth = radius * (1.0 + max(along, 0.0) * 0.12 * wakeSpread);
+                float wakeWidth = radius * (1.0 + max(along, 0.0) * 0.12 * wakeSpread * motionAmplifier);
                 float wakeEnvelope = exp(-pow(max(-along, 0.0) / radius, 2.0))
                                    * exp(-pow(max(along, 0.0) / (radius * 20.0 * wakeSpread), 2.0))
                                    * exp(-pow(across / max(wakeWidth, 0.01), 2.0));
                 psi += wake * _WakeStrength * wakeEnvelope;
 
-                float fieldNoise = fbm(world * 0.54);
+                float fieldNoise = fbm(world * 0.54 - flow * (_ElapsedTime * speed * 0.18));
                 psi += (fieldNoise - 0.5) * speed * radius * 0.045;
                 float contourPhase = psi * _LineFrequency;
                 float contourDistance = abs(asin(sin(contourPhase))) / max(_LineFrequency * speed, 0.001);

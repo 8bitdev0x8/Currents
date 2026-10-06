@@ -10,22 +10,41 @@ public class FluidBallInteraction : MonoBehaviour
     private bool dragging;
     private float targetHeight;
     private float heightSmoothVelocity;
+    private Vector3 lastPosition;
+    private float movementIntensity;
 
     [Min(0.1f)] public float verticalScrollSpeed = 3f;
     [Min(0.01f)] public float heightSmoothTime = 0.12f;
 
     public float Radius => transform.lossyScale.x * 0.5f;
+    public float MovementIntensity => movementIntensity;
 
     private void Awake()
     {
         sceneCamera = Camera.main;
         if (sceneCamera == null) sceneCamera = FindObjectOfType<Camera>();
         targetHeight = transform.position.y;
+        lastPosition = transform.position;
     }
 
     private void Update()
     {
-        if (sceneCamera == null) return;
+        if (sceneCamera != null)
+        {
+            UpdateDragging();
+        }
+
+        float height = Mathf.SmoothDamp(transform.position.y, targetHeight, ref heightSmoothVelocity, heightSmoothTime);
+        transform.position = new Vector3(transform.position.x, height, transform.position.z);
+
+        float deltaTime = Mathf.Max(Time.deltaTime, 0.0001f);
+        float movementSpeed = (transform.position - lastPosition).magnitude / deltaTime;
+        movementIntensity = Mathf.MoveTowards(movementIntensity, Mathf.Clamp01(movementSpeed / 4f), deltaTime * 3f);
+        lastPosition = transform.position;
+    }
+
+    private void UpdateDragging()
+    {
 
         if (Input.GetMouseButtonDown(1))
         {
@@ -53,7 +72,5 @@ public class FluidBallInteraction : MonoBehaviour
             }
         }
 
-        float height = Mathf.SmoothDamp(transform.position.y, targetHeight, ref heightSmoothVelocity, heightSmoothTime);
-        transform.position = new Vector3(transform.position.x, height, transform.position.z);
     }
 }
