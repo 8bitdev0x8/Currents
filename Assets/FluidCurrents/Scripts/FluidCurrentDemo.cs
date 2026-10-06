@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 /// <summary>Controls a 2D incompressible-flow simulation and its streamline rendering.</summary>
 [RequireComponent(typeof(Camera))]
@@ -59,20 +60,7 @@ public class FluidCurrentDemo : MonoBehaviour
     private bool settingFlowDirection;
     private Vector3 flowDirectionDragStart;
     private float displayedFps;
-    private GUIStyle fpsStyle;
-    private GUIStyle overlayButtonStyle;
-    private GUIStyle overlaySectionStyle;
-    private GUIStyle overlayLabelStyle;
-    private GUIStyle overlayToggleStyle;
-    private GUIStyle overlayValueStyle;
-    private GUIStyle sliderStyle;
-    private GUIStyle sliderThumbStyle;
-    private Texture2D panelTexture;
-    private Texture2D hoverTexture;
-    private Texture2D trackTexture;
-    private Texture2D accentTexture;
-    private bool overlayOpen;
-    private Vector2 overlayScroll;
+    private FluidCurrentOverlayUI overlayUI;
 
     public float DisplayedFps => displayedFps;
 
@@ -81,6 +69,9 @@ public class FluidCurrentDemo : MonoBehaviour
         targetCamera = GetComponent<Camera>();
         targetCamera.clearFlags = CameraClearFlags.SolidColor;
         targetCamera.backgroundColor = deepColor;
+        overlayUI = GetComponent<FluidCurrentOverlayUI>();
+        if (overlayUI == null) overlayUI = gameObject.AddComponent<FluidCurrentOverlayUI>();
+        overlayUI.Initialize(this);
         FindSceneObjects();
         EnsureSimulation();
         if (surfaceRenderer != null) runtimeSurfaceMaterial = surfaceRenderer.material;
@@ -90,10 +81,6 @@ public class FluidCurrentDemo : MonoBehaviour
     {
         if (runtimeSurfaceMaterial != null && Application.isPlaying)
             Destroy(runtimeSurfaceMaterial);
-        DestroyGuiTexture(panelTexture);
-        DestroyGuiTexture(hoverTexture);
-        DestroyGuiTexture(trackTexture);
-        DestroyGuiTexture(accentTexture);
     }
 
     private void FindSceneObjects()
@@ -147,173 +134,6 @@ public class FluidCurrentDemo : MonoBehaviour
         displayedFps = displayedFps <= 0f ? instantFps : Mathf.Lerp(displayedFps, instantFps, blend);
     }
 
-    private void OnGUI()
-    {
-        EnsureGuiStyles();
-        DrawParameterOverlay();
-        Rect fpsRect = new Rect(Screen.width - 120f, 12f, 108f, 34f);
-        GUI.DrawTexture(fpsRect, panelTexture);
-        GUI.DrawTexture(new Rect(fpsRect.x, fpsRect.y, 2f, fpsRect.height), accentTexture);
-        GUI.Label(fpsRect, $"{displayedFps:0} FPS", fpsStyle);
-    }
-
-    private void DrawParameterOverlay()
-    {
-        float panelWidth = Mathf.Min(330f, Screen.width - 24f);
-        if (GUI.Button(new Rect(12f, 12f, panelWidth, 38f),
-            overlayOpen ? "CURRENTS     /     CONTROLS     −" : "CURRENTS     /     CONTROLS     +", overlayButtonStyle))
-            overlayOpen = !overlayOpen;
-        if (!overlayOpen) return;
-
-        float panelHeight = Mathf.Min(560f, Mathf.Max(150f, Screen.height - 76f));
-        Rect panelRect = new Rect(12f, 56f, panelWidth, panelHeight);
-        GUI.DrawTexture(panelRect, panelTexture);
-        GUI.DrawTexture(new Rect(panelRect.x, panelRect.y, 3f, panelRect.height), accentTexture);
-        GUI.Label(new Rect(28f, 66f, panelWidth - 42f, 18f), "LIVE SIMULATION PARAMETERS", overlaySectionStyle);
-        if (GUI.Button(new Rect(panelRect.xMax - 140f, panelRect.y + 10f, 126f, 25f), "RESTORE DEFAULTS"))
-            RestoreDefaultValues();
-
-        GUILayout.BeginArea(new Rect(28f, 88f, panelWidth - 44f, panelHeight - 42f));
-        overlayScroll = GUILayout.BeginScrollView(overlayScroll);
-        rainbowEnabled = GUILayout.Toggle(rainbowEnabled, "RAINBOW WAKE", overlayToggleStyle);
-        GUILayout.Space(6f);
-        if (showFlowVelocityInOverlay) DrawOverlaySlider("Flow velocity", ref flowVelocity, 0.1f, 4f);
-        if (showViscosityInOverlay) DrawOverlaySlider("Kinematic viscosity", ref kinematicViscosity, 0.001f, 0.15f);
-        if (showWakeStrengthInOverlay) DrawOverlaySlider("Wake strength", ref wakeStrength, 0f, 2f);
-        if (showWakeViolenceInOverlay) DrawOverlaySlider("Wake violence", ref wakeViolence, 0.5f, 5f);
-        if (showLineFrequencyInOverlay) DrawOverlaySlider("Line frequency", ref lineFrequency, 1f, 12f);
-        if (showLineWidthInOverlay) DrawOverlaySlider("Line width", ref lineWidth, 0.005f, 0.2f);
-        if (showRedLineWidthInOverlay) DrawOverlaySlider("Red line width", ref redLineWidth, 0.02f, 0.4f);
-        if (showBlackLineWidthInOverlay) DrawOverlaySlider("Black line width", ref blackLineWidth, 0f, 0.2f);
-        if (showEdgeFadeInOverlay) DrawOverlaySlider("Edge fade distance", ref edgeFadeDistance, 1f, 40f);
-        if (showRainbowFadeInOverlay) DrawOverlaySlider("Rainbow fade distance", ref rainbowFadeDistance, 8f, 60f);
-        if (showRainbowCycleInOverlay) DrawOverlaySlider("Rainbow cycle length", ref rainbowCycleLength, 4f, 40f);
-        if (showSimulationRateInOverlay) DrawOverlaySlider("Simulation rate", ref simulationRate, 15f, 60f);
-        if (showFlowRecoveryInOverlay) DrawRecoverySlider();
-        GUILayout.Space(8f);
-        GUILayout.Label("RIGHT-DRAG SPHERE   ·   LEFT-DRAG FLOW", overlaySectionStyle);
-        GUILayout.EndScrollView();
-        GUILayout.EndArea();
-    }
-
-    private void EnsureGuiStyles()
-    {
-        if (panelTexture == null)
-        {
-            panelTexture = CreateGuiTexture(new Color(0.035f, 0.025f, 0.055f, 0.96f));
-            hoverTexture = CreateGuiTexture(new Color(0.11f, 0.065f, 0.15f, 1f));
-            trackTexture = CreateGuiTexture(new Color(0.18f, 0.12f, 0.23f, 1f));
-            accentTexture = CreateGuiTexture(new Color(1f, 0.69f, 0.26f, 1f));
-        }
-
-        if (overlayButtonStyle != null) return;
-        overlayButtonStyle = new GUIStyle(GUI.skin.button)
-        {
-            alignment = TextAnchor.MiddleLeft,
-            fontSize = 13,
-            fontStyle = FontStyle.Bold,
-            padding = new RectOffset(14, 10, 5, 5),
-            normal = { background = panelTexture, textColor = new Color(0.95f, 0.82f, 1f) },
-            hover = { background = hoverTexture, textColor = Color.white },
-            active = { background = hoverTexture, textColor = Color.white }
-        };
-        overlaySectionStyle = new GUIStyle(GUI.skin.label)
-        {
-            fontSize = 9,
-            fontStyle = FontStyle.Bold,
-            normal = { textColor = new Color(1f, 0.69f, 0.26f) }
-        };
-        overlayLabelStyle = new GUIStyle(GUI.skin.label)
-        {
-            fontSize = 10,
-            fontStyle = FontStyle.Bold,
-            normal = { textColor = new Color(0.79f, 0.72f, 0.85f) }
-        };
-        overlayToggleStyle = new GUIStyle(GUI.skin.toggle)
-        {
-            fontSize = 10,
-            fontStyle = FontStyle.Bold,
-            normal = { textColor = new Color(0.79f, 0.72f, 0.85f) }
-        };
-        overlayValueStyle = new GUIStyle(overlayLabelStyle)
-        {
-            alignment = TextAnchor.MiddleRight,
-            normal = { textColor = new Color(0.98f, 0.93f, 1f) }
-        };
-        sliderStyle = new GUIStyle(GUI.skin.horizontalSlider)
-        {
-            fixedHeight = 8f,
-            normal = { background = trackTexture },
-            hover = { background = trackTexture },
-            active = { background = trackTexture }
-        };
-        sliderThumbStyle = new GUIStyle(GUI.skin.horizontalSliderThumb)
-        {
-            fixedWidth = 13f,
-            fixedHeight = 13f,
-            normal = { background = accentTexture },
-            hover = { background = accentTexture },
-            active = { background = accentTexture }
-        };
-        fpsStyle = new GUIStyle(GUI.skin.label)
-        {
-            alignment = TextAnchor.MiddleCenter,
-            fontStyle = FontStyle.Bold,
-            fontSize = 13,
-            normal = { textColor = new Color(1f, 0.82f, 0.46f) }
-        };
-    }
-
-    private static Texture2D CreateGuiTexture(Color color)
-    {
-        Texture2D texture = new Texture2D(1, 1, TextureFormat.RGBA32, false, true)
-        {
-            hideFlags = HideFlags.HideAndDontSave,
-            filterMode = FilterMode.Point,
-            wrapMode = TextureWrapMode.Clamp
-        };
-        texture.SetPixel(0, 0, color);
-        texture.Apply();
-        return texture;
-    }
-
-    private void DestroyGuiTexture(Texture2D texture)
-    {
-        if (texture == null) return;
-        if (Application.isPlaying) Destroy(texture);
-        else DestroyImmediate(texture);
-    }
-
-    private void DrawOverlaySlider(string label, ref float value, float minimum, float maximum)
-    {
-        GUILayout.BeginVertical();
-        GUILayout.BeginHorizontal();
-        GUILayout.Label(label.ToUpperInvariant(), overlayLabelStyle);
-        GUILayout.FlexibleSpace();
-        GUILayout.Label(value.ToString("0.###"), overlayValueStyle, GUILayout.Width(54f));
-        GUILayout.EndHorizontal();
-        value = GUILayout.HorizontalSlider(value, minimum, maximum, sliderStyle, sliderThumbStyle);
-        GUILayout.Space(5f);
-        GUILayout.EndVertical();
-    }
-
-    private void DrawRecoverySlider()
-    {
-        GUILayout.BeginVertical();
-        GUILayout.BeginHorizontal();
-        GUILayout.Label("FLOW RECOVERY", overlayLabelStyle);
-        GUILayout.FlexibleSpace();
-        GUILayout.Label(normalFlowRecovery.ToString("0.####"), overlayValueStyle, GUILayout.Width(54f));
-        GUILayout.EndHorizontal();
-        float minimum = Mathf.Log10(0.0001f);
-        float maximum = Mathf.Log10(2f);
-        float logarithmicValue = Mathf.Log10(Mathf.Clamp(normalFlowRecovery, 0.0001f, 2f));
-        logarithmicValue = GUILayout.HorizontalSlider(logarithmicValue, minimum, maximum, sliderStyle, sliderThumbStyle);
-        normalFlowRecovery = Mathf.Pow(10f, logarithmicValue);
-        GUILayout.Space(5f);
-        GUILayout.EndVertical();
-    }
-
     public void RestoreDefaultValues()
     {
         deepColor = new Color(0.004f, 0.003f, 0.008f);
@@ -338,6 +158,7 @@ public class FluidCurrentDemo : MonoBehaviour
         flowDirection = new Vector2(0.22f, -0.41f);
         currentOriginXZ = new Vector2(0.22f, 8f);
         if (targetCamera != null) targetCamera.backgroundColor = deepColor;
+        if (overlayUI != null) overlayUI.RefreshValues();
     }
 
     private void HandleFlowDirectionInput()
@@ -379,12 +200,7 @@ public class FluidCurrentDemo : MonoBehaviour
 
     private bool IsPointerOverOverlay()
     {
-        Vector2 mouse = new Vector2(Input.mousePosition.x, Screen.height - Input.mousePosition.y);
-        float panelWidth = Mathf.Min(340f, Screen.width - 24f);
-        if (new Rect(12f, 12f, panelWidth, 38f).Contains(mouse)) return true;
-        if (!overlayOpen) return false;
-        float panelHeight = Mathf.Min(560f, Mathf.Max(150f, Screen.height - 76f));
-        return new Rect(12f, 56f, panelWidth, panelHeight).Contains(mouse);
+        return EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
     }
 
     private bool TryGetSurfacePoint(Vector3 screenPoint, out Vector3 point)
