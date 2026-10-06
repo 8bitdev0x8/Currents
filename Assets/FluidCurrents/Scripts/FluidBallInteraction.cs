@@ -11,6 +11,7 @@ public class FluidBallInteraction : MonoBehaviour
     private float targetHeight;
     private float heightSmoothVelocity;
     private Vector3 lastPosition;
+    private Vector3 velocity;
     private float movementIntensity;
 
     [Min(0.1f)] public float verticalScrollSpeed = 3f;
@@ -18,6 +19,7 @@ public class FluidBallInteraction : MonoBehaviour
 
     public float Radius => transform.lossyScale.x * 0.5f;
     public float MovementIntensity => movementIntensity;
+    public Vector3 Velocity => velocity;
 
     private void Awake()
     {
@@ -38,8 +40,9 @@ public class FluidBallInteraction : MonoBehaviour
         transform.position = new Vector3(transform.position.x, height, transform.position.z);
 
         float deltaTime = Mathf.Max(Time.deltaTime, 0.0001f);
-        float movementSpeed = (transform.position - lastPosition).magnitude / deltaTime;
-        movementIntensity = Mathf.MoveTowards(movementIntensity, Mathf.Clamp01(movementSpeed / 4f), deltaTime * 3f);
+        Vector3 measuredVelocity = Vector3.ClampMagnitude((transform.position - lastPosition) / deltaTime, 8f);
+        velocity = Vector3.Lerp(velocity, measuredVelocity, 1f - Mathf.Exp(-deltaTime * 10f));
+        movementIntensity = Mathf.MoveTowards(movementIntensity, Mathf.Clamp01(velocity.magnitude / 4f), deltaTime * 3f);
         lastPosition = transform.position;
     }
 

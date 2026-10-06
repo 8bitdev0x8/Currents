@@ -26,6 +26,7 @@ Material:
     m_Ints: []
     m_Floats:
     - _BallRadius: 1.5
+    - _BallMotion: 0
     - _BlackLineWidth: 0.04
     - _ElapsedTime: 0
     - _FlowVelocity: 1
@@ -39,6 +40,7 @@ Material:
     - _WakeViolence: 3
     m_Colors:
     - _BallPosition: {r: 0, g: 0, b: 8, a: 0}
+    - _BallVelocity: {r: 0, g: 0, b: 0, a: 0}
     - _CurrentOrigin: {r: 0.22, g: 8, b: 0, a: 0}
     - _Deep: {r: 0.004, g: 0.003, b: 0.008, a: 1}
     - _FlowDirection: {r: 0.22, g: -0.41, b: 0, a: 0}
