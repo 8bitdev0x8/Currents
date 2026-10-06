@@ -25,6 +25,8 @@ public class FluidCurrentDemo : MonoBehaviour
     [Range(8f, 60f)] public float rainbowFadeDistance = 36f;
     [Range(4f, 40f)] public float rainbowCycleLength = 14f;
     [Range(15f, 60f)] public float simulationRate = 30f;
+    [Header("Flow recovery")]
+    [Range(0.02f, 2f)] public float normalFlowRecovery = 0.12f;
     public Vector2 flowDirection = new Vector2(0.22f, -0.41f);
 
     [Header("Fixed accent current")]
@@ -171,7 +173,7 @@ public class FluidCurrentDemo : MonoBehaviour
         if (surfaceRenderer == null || ball == null || runtimeSurfaceMaterial == null) return;
         EnsureSimulation();
         simulation.Advance(Time.deltaTime, ball, flowDirection, flowVelocity, kinematicViscosity,
-            wakeStrength, wakeViolence, currentOriginXZ, simulationRate);
+            wakeStrength, wakeViolence, currentOriginXZ, simulationRate, normalFlowRecovery);
         Bounds bounds = surfaceRenderer.bounds;
         runtimeSurfaceMaterial.SetVector("_FieldBounds",
             new Vector4(bounds.min.x, bounds.min.z, bounds.size.x, bounds.size.z));

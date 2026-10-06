@@ -10,6 +10,6 @@ The simulation is a real-time 2D numerical flow model rendered on a perspective 
 2. Open `Assets/Scenes/FluidCurrentsDemo` if needed.
 3. Press **Play**. Right-drag the silver ball; hold it and scroll to raise or lower it. Left-drag on the plane to change the flow direction. The Game view shows the live FPS in its upper-right corner.
 
-Select **Main Camera** to tune inflow speed, viscosity, simulation rate, rainbow fade and cycle length, streamline spacing and widths, flow direction, and the palette. The demo scene is listed in Build Settings.
+Select **Main Camera** to tune inflow speed, viscosity, normal-flow recovery rate, simulation rate, rainbow fade and cycle length, streamline spacing and widths, flow direction, and the palette. Lower recovery rates keep the wake disturbed for longer. The demo scene is listed in Build Settings.
 
 The project uses Unity's built-in renderer and requires no extra packages.

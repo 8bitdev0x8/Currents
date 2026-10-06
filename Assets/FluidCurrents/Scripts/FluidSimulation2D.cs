@@ -21,6 +21,7 @@ public sealed class FluidSimulation2D : MonoBehaviour
     private float viscosity;
     private float wakeStrength;
     private float wakeViolence;
+    private float normalFlowRecovery;
     private float contact;
     private float obstacleRadius;
     private float ballX;
@@ -94,7 +95,8 @@ public sealed class FluidSimulation2D : MonoBehaviour
         float currentWakeStrength,
         float currentWakeViolence,
         Vector2 currentOrigin,
-        float simulationRate)
+        float simulationRate,
+        float flowRecoveryRate)
     {
         if (!initialized || ball == null) return;
 
@@ -104,6 +106,7 @@ public sealed class FluidSimulation2D : MonoBehaviour
         viscosity = Mathf.Clamp(kinematicViscosity, 0.0001f, 0.5f);
         wakeStrength = Mathf.Max(currentWakeStrength, 0f);
         wakeViolence = Mathf.Max(currentWakeViolence, 0.1f);
+        normalFlowRecovery = Mathf.Max(flowRecoveryRate, 0f);
         ballX = ball.transform.position.x;
         ballZ = ball.transform.position.z;
         ballVelocityX = ball.Velocity.x;
@@ -195,7 +198,7 @@ public sealed class FluidSimulation2D : MonoBehaviour
 
     private void ApplyAmbientRecovery(float dt)
     {
-        float recovery = 1f - Mathf.Exp(-0.18f * dt);
+        float recovery = 1f - Mathf.Exp(-normalFlowRecovery * dt);
         for (int z = 1; z <= Resolution; z++)
         {
             for (int x = 1; x <= Resolution; x++)
