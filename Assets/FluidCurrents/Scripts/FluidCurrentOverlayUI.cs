@@ -342,7 +342,11 @@ public sealed class FluidCurrentOverlayUI : MonoBehaviour
 
     private TMP_FontAsset ResolveFont()
     {
-        if (TMP_Settings.defaultFontAsset != null) return TMP_Settings.defaultFontAsset;
+        // The static defaultFontAsset property dereferences TMP_Settings.instance
+        // without checking whether the TMP Settings resource exists in this project.
+        // Use the guarded accessor so the runtime Arial fallback can be created.
+        TMP_FontAsset configuredFont = TMP_Settings.GetFontAsset();
+        if (configuredFont != null) return configuredFont;
         if (fallbackFont != null) return fallbackFont;
         fallbackSystemFont = Resources.GetBuiltinResource<Font>("Arial.ttf");
         if (fallbackSystemFont == null) return null;
