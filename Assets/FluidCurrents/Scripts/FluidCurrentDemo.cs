@@ -22,6 +22,7 @@ public class FluidCurrentDemo : MonoBehaviour
     [Range(0.02f, 0.4f)] public float redLineWidth = 0.16f;
     [Range(0f, 0.2f)] public float blackLineWidth = 0.04f;
     [Range(1f, 40f)] public float edgeFadeDistance = 12f;
+    [Range(8f, 60f)] public float rainbowFadeDistance = 36f;
     public Vector2 flowDirection = new Vector2(0.22f, -0.41f);
 
     [Header("Fixed accent current")]
@@ -34,6 +35,8 @@ public class FluidCurrentDemo : MonoBehaviour
     private FluidSimulation2D simulation;
     private bool settingFlowDirection;
     private Vector3 flowDirectionDragStart;
+    private float displayedFps;
+    private GUIStyle fpsStyle;
 
     private void Awake()
     {
@@ -69,6 +72,7 @@ public class FluidCurrentDemo : MonoBehaviour
 
     private void Update()
     {
+        UpdateFps();
         if (surfaceRenderer == null || ball == null) FindSceneObjects();
         if (runtimeSurfaceMaterial == null || ball == null) return;
         HandleFlowDirectionInput();
@@ -88,14 +92,47 @@ public class FluidCurrentDemo : MonoBehaviour
         runtimeSurfaceMaterial.SetFloat("_RedLineWidth", redLineWidth);
         runtimeSurfaceMaterial.SetFloat("_BlackLineWidth", blackLineWidth);
         runtimeSurfaceMaterial.SetFloat("_EdgeFadeDistance", edgeFadeDistance);
+        runtimeSurfaceMaterial.SetFloat("_RainbowFadeDistance", rainbowFadeDistance);
         runtimeSurfaceMaterial.SetFloat("_ElapsedTime", Time.time);
+    }
+
+    private void UpdateFps()
+    {
+        float delta = Time.unscaledDeltaTime;
+        if (delta <= 0f) return;
+        float instantFps = 1f / delta;
+        float blend = 1f - Mathf.Exp(-delta * 3f);
+        displayedFps = displayedFps <= 0f ? instantFps : Mathf.Lerp(displayedFps, instantFps, blend);
+    }
+
+    private void OnGUI()
+    {
+        if (fpsStyle == null)
+        {
+            fpsStyle = new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.UpperRight,
+                fontStyle = FontStyle.Bold,
+                fontSize = Mathf.Max(14, Mathf.RoundToInt(Screen.height / 45f))
+            };
+            fpsStyle.normal.textColor = new Color(1f, 0.82f, 0.42f);
+        }
+
+        GUI.Label(new Rect(Screen.width - 150f, 12f, 136f, 30f), $"{displayedFps:0} FPS", fpsStyle);
     }
 
     private void HandleFlowDirectionInput()
     {
         if (surfaceRenderer == null || targetCamera == null) return;
-        if (Input.GetMouseButtonDown(1))
+        if (Input.GetMouseButtonDown(0))
         {
+            Ray pickRay = targetCamera.ScreenPointToRay(Input.mousePosition);
+            if (Physics.Raycast(pickRay, out RaycastHit hit) && hit.collider.gameObject == ball.gameObject)
+            {
+                settingFlowDirection = false;
+                return;
+            }
+
             if (TryGetSurfacePoint(Input.mousePosition, out Vector3 point))
             {
                 flowDirectionDragStart = point;
@@ -103,8 +140,8 @@ public class FluidCurrentDemo : MonoBehaviour
             }
         }
 
-        if (Input.GetMouseButtonUp(1)) settingFlowDirection = false;
-        if (!settingFlowDirection || !Input.GetMouseButton(1)) return;
+        if (Input.GetMouseButtonUp(0)) settingFlowDirection = false;
+        if (!settingFlowDirection || !Input.GetMouseButton(0)) return;
         if (!TryGetSurfacePoint(Input.mousePosition, out Vector3 currentPoint)) return;
 
         Vector2 drag = new Vector2(currentPoint.x - flowDirectionDragStart.x,

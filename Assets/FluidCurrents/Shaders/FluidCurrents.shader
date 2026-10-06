@@ -16,6 +16,7 @@ Shader "FluidCurrents/World Surface"
         _RedLineWidth ("Red current width", Range(0.02, 0.4)) = 0.16
         _BlackLineWidth ("Black outline width", Range(0, 0.2)) = 0.04
         _EdgeFadeDistance ("Surface edge fade distance", Range(1, 40)) = 12
+        _RainbowFadeDistance ("Rainbow wake fade distance", Range(8, 60)) = 36
         _BallRadius ("Sphere radius", Float) = 1.5
         _FieldBounds ("Flow field world bounds", Vector) = (-30, -20, 60, 60)
         _ElapsedTime ("Elapsed time", Float) = 0
@@ -49,6 +50,7 @@ Shader "FluidCurrents/World Surface"
             float _RedLineWidth;
             float _BlackLineWidth;
             float _EdgeFadeDistance;
+            float _RainbowFadeDistance;
             float _BallRadius;
             float _ElapsedTime;
             sampler2D _FlowField;
@@ -114,8 +116,9 @@ Shader "FluidCurrents/World Surface"
                 float wakeAcross = dot(wakeRelative, side);
                 float wakeEnvelope = smoothstep(radius * 0.8, radius * 2.0, wakeAlong)
                                    * exp(-abs(wakeAcross) / max(radius * 6.0, 0.01));
-                float rainbowAmount = contour * wakeEnvelope * turbulence * 0.9;
-                float rainbowHue = frac(0.78 - wakeAlong / max(radius * 14.0, 0.01) + vorticity * 0.12);
+                float rainbowFade = exp(-max(wakeAlong, 0.0) / max(_RainbowFadeDistance, 0.01));
+                float rainbowAmount = contour * wakeEnvelope * turbulence * rainbowFade * 0.9;
+                float rainbowHue = frac(0.78 - wakeAlong / max(radius * 22.0, 0.01) + vorticity * 0.12);
                 color = lerp(color, hsvToRgb(rainbowHue), rainbowAmount);
 
                 // Keep the accent on the fixed psi=0 contour set by Current Origin.

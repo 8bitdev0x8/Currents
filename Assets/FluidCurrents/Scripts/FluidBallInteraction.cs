@@ -1,6 +1,6 @@
 using UnityEngine;
 
-/// <summary>Left-drag the sphere across the surface and use the wheel to raise or lower it.</summary>
+/// <summary>Right-drag the sphere across the surface and use the wheel to raise or lower it.</summary>
 [RequireComponent(typeof(SphereCollider))]
 public class FluidBallInteraction : MonoBehaviour
 {
@@ -49,7 +49,7 @@ public class FluidBallInteraction : MonoBehaviour
     private void UpdateDragging()
     {
 
-        if (Input.GetMouseButtonDown(0))
+        if (Input.GetMouseButtonDown(1))
         {
             Ray pickRay = sceneCamera.ScreenPointToRay(Input.mousePosition);
             if (Physics.Raycast(pickRay, out RaycastHit pick) && pick.collider.gameObject == gameObject)
@@ -63,8 +63,8 @@ public class FluidBallInteraction : MonoBehaviour
             }
         }
 
-        if (Input.GetMouseButtonUp(0)) dragging = false;
-        if (dragging && Input.GetMouseButton(0))
+        if (Input.GetMouseButtonUp(1)) dragging = false;
+        if (dragging && Input.GetMouseButton(1))
         {
             targetHeight += Input.mouseScrollDelta.y * verticalScrollSpeed;
             Ray ray = sceneCamera.ScreenPointToRay(Input.mousePosition);
