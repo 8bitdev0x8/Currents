@@ -95,7 +95,7 @@ public static class FluidCurrentsSceneSetup
         EditorSceneManager.SaveScene(scene, ScenePath);
         AddSceneToBuildSettings();
         AssetDatabase.SaveAssets();
-        Debug.Log("Created the 3D fluid-current demo with an interactive sphere and a Strouhal-based wake.");
+        Debug.Log("Created the 3D fluid-current demo with an interactive sphere and a numerical fluid wake.");
     }
 
     private static Material GetOrCreateMaterial(string path, Shader shader, System.Action<Material> setup)

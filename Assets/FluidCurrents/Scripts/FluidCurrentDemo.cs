@@ -32,6 +32,8 @@ public class FluidCurrentDemo : MonoBehaviour
     private Material runtimeSurfaceMaterial;
     private FluidBallInteraction ball;
     private FluidSimulation2D simulation;
+    private bool settingFlowDirection;
+    private Vector3 flowDirectionDragStart;
 
     private void Awake()
     {
@@ -69,6 +71,7 @@ public class FluidCurrentDemo : MonoBehaviour
     {
         if (surfaceRenderer == null || ball == null) FindSceneObjects();
         if (runtimeSurfaceMaterial == null || ball == null) return;
+        HandleFlowDirectionInput();
 
         Vector2 direction = flowDirection.sqrMagnitude > 0.0001f ? flowDirection.normalized : Vector2.right;
         runtimeSurfaceMaterial.SetColor("_Deep", deepColor);
@@ -88,6 +91,41 @@ public class FluidCurrentDemo : MonoBehaviour
         runtimeSurfaceMaterial.SetFloat("_ElapsedTime", Time.time);
     }
 
+    private void HandleFlowDirectionInput()
+    {
+        if (surfaceRenderer == null || targetCamera == null) return;
+        if (Input.GetMouseButtonDown(1))
+        {
+            if (TryGetSurfacePoint(Input.mousePosition, out Vector3 point))
+            {
+                flowDirectionDragStart = point;
+                settingFlowDirection = true;
+            }
+        }
+
+        if (Input.GetMouseButtonUp(1)) settingFlowDirection = false;
+        if (!settingFlowDirection || !Input.GetMouseButton(1)) return;
+        if (!TryGetSurfacePoint(Input.mousePosition, out Vector3 currentPoint)) return;
+
+        Vector2 drag = new Vector2(currentPoint.x - flowDirectionDragStart.x,
+                                   currentPoint.z - flowDirectionDragStart.z);
+        if (drag.sqrMagnitude > 0.04f)
+            flowDirection = drag.normalized;
+    }
+
+    private bool TryGetSurfacePoint(Vector3 screenPoint, out Vector3 point)
+    {
+        Ray ray = targetCamera.ScreenPointToRay(screenPoint);
+        Plane plane = new Plane(Vector3.up, new Vector3(0f, surfaceRenderer.transform.position.y, 0f));
+        if (plane.Raycast(ray, out float distance))
+        {
+            point = ray.GetPoint(distance);
+            return true;
+        }
+        point = Vector3.zero;
+        return false;
+    }
+
     private void LateUpdate()
     {
         if (surfaceRenderer == null || ball == null || runtimeSurfaceMaterial == null) return;
@@ -97,6 +135,7 @@ public class FluidCurrentDemo : MonoBehaviour
         Bounds bounds = surfaceRenderer.bounds;
         runtimeSurfaceMaterial.SetVector("_FieldBounds",
             new Vector4(bounds.min.x, bounds.min.z, bounds.size.x, bounds.size.z));
+        runtimeSurfaceMaterial.SetVector("_BallPosition", ball.transform.position);
         runtimeSurfaceMaterial.SetTexture("_FlowField", simulation.FieldTexture);
     }
 }

@@ -8,7 +8,7 @@ The simulation is a real-time 2D numerical flow model rendered on a perspective 
 
 1. Open `D:\Currents\UnityProject` in Unity Hub with Unity 6.0.3 or newer.
 2. Open `Assets/Scenes/FluidCurrentsDemo` if needed.
-3. Press **Play** and drag the silver ball in the Game view.
+3. Press **Play**. Left-drag the silver ball; hold it and scroll to raise or lower it. Right-drag on the plane to change the flow direction.
 
 Select **Main Camera** to tune inflow speed, viscosity, vorticity confinement, streamline spacing and widths, flow direction, and the black, violet, silver-lavender, red, and amber palette. The demo scene is listed in Build Settings.
 

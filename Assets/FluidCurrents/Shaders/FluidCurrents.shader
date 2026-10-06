@@ -9,6 +9,7 @@ Shader "FluidCurrents/World Surface"
         _GoldCurrent ("Amber current", Color) = (1, 0.52, 0, 1)
         _FlowDirection ("Flow direction", Vector) = (0.22, -0.41, 0, 0)
         _CurrentOrigin ("Fixed current origin", Vector) = (0.22, 8, 0, 0)
+        _BallPosition ("Sphere world position", Vector) = (0, 0, 8, 0)
         _FlowVelocity ("Flow velocity", Float) = 1
         _LineFrequency ("Line frequency", Float) = 4.49
         _LineWidth ("Streamline width", Range(0.005, 0.2)) = 0.045
@@ -41,6 +42,7 @@ Shader "FluidCurrents/World Surface"
             fixed4 _GoldCurrent;
             float4 _FlowDirection;
             float4 _CurrentOrigin;
+            float4 _BallPosition;
             float _FlowVelocity;
             float _LineFrequency;
             float _LineWidth;
@@ -73,6 +75,12 @@ Shader "FluidCurrents/World Surface"
                 return frac(p.x * p.y);
             }
 
+            float3 hsvToRgb(float hue)
+            {
+                float3 phase = frac(hue + float3(0.0, 0.6666667, 0.3333333));
+                return saturate(abs(phase * 6.0 - 3.0) - 1.0);
+            }
+
             fixed4 frag(v2f input) : SV_Target
             {
                 float2 world = input.worldPos.xz;
@@ -98,6 +106,17 @@ Shader "FluidCurrents/World Surface"
                 float contourShadow = 1.0 - smoothstep(_LineWidth + _BlackLineWidth, _LineWidth + _BlackLineWidth + contourEdge, contourDistance);
                 color = lerp(color, float3(0.0, 0.0, 0.0), contourShadow * 0.92);
                 color = lerp(color, _Line.rgb, contour * (0.58 + fill * 0.38 + turbulence * 0.18));
+
+                // Let the solver's shed-vorticity lines pick up a spectral end color.
+                float2 side = float2(-flow.y, flow.x);
+                float2 wakeRelative = world - _BallPosition.xz;
+                float wakeAlong = dot(wakeRelative, flow);
+                float wakeAcross = dot(wakeRelative, side);
+                float wakeEnvelope = smoothstep(radius * 0.8, radius * 2.0, wakeAlong)
+                                   * exp(-abs(wakeAcross) / max(radius * 6.0, 0.01));
+                float rainbowAmount = contour * wakeEnvelope * turbulence * 0.9;
+                float rainbowHue = frac(0.78 - wakeAlong / max(radius * 14.0, 0.01) + vorticity * 0.12);
+                color = lerp(color, hsvToRgb(rainbowHue), rainbowAmount);
 
                 // Keep the accent on the fixed psi=0 contour set by Current Origin.
                 // The sphere changes the sampled field and bends this contour, but
