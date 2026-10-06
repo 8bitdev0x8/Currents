@@ -123,7 +123,8 @@ Shader "FluidCurrents/World Surface"
                 float wakeEnvelope = downstream * exp(-abs(wakeAcross) / max(wakeWidth, 0.01));
                 float wakeFade = exp(-max(wakeAlong, 0.0) / max(_RainbowFadeDistance, 0.01));
                 float rainbowAmount = contour * wakeEnvelope * wakeFade * (0.82 + turbulence * 0.18);
-                float rainbowHue = frac(0.78 - wakeAlong / max(_RainbowCycleLength, 0.01)
+                float rainbowTravel = _ElapsedTime * speed * 0.65;
+                float rainbowHue = frac(0.78 - (wakeAlong - rainbowTravel) / max(_RainbowCycleLength, 0.01)
                                       + vorticity * 0.1 + wakeAcross * 0.018);
                 color = lerp(color, hsvToRgb(rainbowHue), rainbowAmount * 0.96);
 
