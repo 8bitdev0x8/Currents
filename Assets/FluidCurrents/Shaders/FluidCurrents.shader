@@ -10,20 +10,14 @@ Shader "FluidCurrents/World Surface"
         _FlowDirection ("Flow direction", Vector) = (0.22, -0.41, 0, 0)
         _CurrentOrigin ("Fixed current origin", Vector) = (0.22, 8, 0, 0)
         _FlowVelocity ("Flow velocity", Float) = 1
-        _Strouhal ("Strouhal number", Float) = 0.245
-        _Viscosity ("Kinematic viscosity", Float) = 0.028
         _LineFrequency ("Line frequency", Float) = 4.49
         _LineWidth ("Streamline width", Range(0.005, 0.2)) = 0.045
         _RedLineWidth ("Red current width", Range(0.02, 0.4)) = 0.16
         _BlackLineWidth ("Black outline width", Range(0, 0.2)) = 0.04
-        _WakeStrength ("Wake strength", Float) = 2
-        _WakeViolence ("Wake violence", Range(0.5, 5)) = 3
-        _BallMotion ("Sphere motion", Float) = 0
-        _BallPosition ("Sphere position", Vector) = (0, 1.5, 8, 0)
-        _BallVelocity ("Sphere velocity", Vector) = (0, 0, 0, 0)
         _BallRadius ("Sphere radius", Float) = 1.5
-        _SurfaceHeight ("Fluid surface height", Float) = -0.03
+        _BallPosition ("Sphere world position", Vector) = (0, 0, 8, 0)
         _ElapsedTime ("Elapsed time", Float) = 0
+        [NoScaleOffset] _FlowField ("Simulated flow field", 2D) = "black" {}
     }
     SubShader
     {
@@ -47,23 +41,17 @@ Shader "FluidCurrents/World Surface"
             float4 _FlowDirection;
             float4 _CurrentOrigin;
             float _FlowVelocity;
-            float _Strouhal;
-            float _Viscosity;
             float _LineFrequency;
             float _LineWidth;
             float _RedLineWidth;
             float _BlackLineWidth;
-            float _WakeStrength;
-            float _WakeViolence;
-            float _BallMotion;
-            float4 _BallPosition;
-            float4 _BallVelocity;
             float _BallRadius;
-            float _SurfaceHeight;
+            float4 _BallPosition;
             float _ElapsedTime;
+            sampler2D _FlowField;
 
-            struct appdata { float4 vertex : POSITION; };
-            struct v2f { float4 position : SV_POSITION; float3 worldPos : TEXCOORD0; float eyeDepth : TEXCOORD1; };
+            struct appdata { float4 vertex : POSITION; float2 uv : TEXCOORD0; };
+            struct v2f { float4 position : SV_POSITION; float3 worldPos : TEXCOORD0; float2 uv : TEXCOORD1; float eyeDepth : TEXCOORD2; };
 
             v2f vert(appdata input)
             {
@@ -71,6 +59,7 @@ Shader "FluidCurrents/World Surface"
                 float4 world = mul(unity_ObjectToWorld, input.vertex);
                 output.position = UnityObjectToClipPos(input.vertex);
                 output.worldPos = world.xyz;
+                output.uv = input.uv;
                 output.eyeDepth = -UnityObjectToViewPos(input.vertex).z;
                 return output;
             }
@@ -82,104 +71,38 @@ Shader "FluidCurrents/World Surface"
                 return frac(p.x * p.y);
             }
 
-            float noise(float2 p)
-            {
-                float2 i = floor(p);
-                float2 f = frac(p);
-                f = f * f * (3.0 - 2.0 * f);
-                return lerp(lerp(hash21(i), hash21(i + float2(1, 0)), f.x),
-                            lerp(hash21(i + float2(0, 1)), hash21(i + 1), f.x), f.y);
-            }
-
-            float fbm(float2 p)
-            {
-                float value = 0;
-                float amplitude = 0.5;
-                [unroll] for (int i = 0; i < 4; i++)
-                {
-                    value += amplitude * noise(p);
-                    p = float2(p.x * 1.55 - p.y * 1.18, p.x * 1.18 + p.y * 1.55);
-                    amplitude *= 0.5;
-                }
-                return value;
-            }
-
             fixed4 frag(v2f input) : SV_Target
             {
                 float2 world = input.worldPos.xz;
-                float2 center = _BallPosition.xz;
                 float2 flow = normalize(_FlowDirection.xy);
                 float2 side = float2(-flow.y, flow.x);
-                float2 relative = world - center;
                 float radius = max(_BallRadius, 0.01);
                 float speed = max(_FlowVelocity, 0.01);
-                float2 relativeFlow = flow * speed - _BallVelocity.xz;
-                float relativeSpeed = max(length(relativeFlow), 0.01);
-                float2 localFlow = relativeFlow / relativeSpeed;
-                float2 localSide = float2(-localFlow.y, localFlow.x);
-                float along = dot(relative, localFlow);
-                float across = dot(relative, localSide);
+                float4 flowField = tex2D(_FlowField, input.uv);
+                float psi = flowField.r;
+                float simulatedSpeed = flowField.g;
+                float vorticity = flowField.b;
+                float obstacle = flowField.a;
                 float2 fieldRelative = world - _CurrentOrigin.xy;
                 float fixedAlong = dot(fieldRelative, flow);
-                float fixedAcross = dot(fieldRelative, side);
-
-                // Keep the background streamlines fixed in world space and localize sphere influence.
-                float r2 = max(along * along + across * across, radius * radius * 0.72);
-                float clearance = _BallPosition.y - radius - _SurfaceHeight;
-                float surfaceInfluence = 1.0 - smoothstep(0.0, radius * 0.5, max(clearance, 0.0));
-                float motionInfluence = saturate(_BallMotion) * surfaceInfluence;
-                float potentialSpeed = speed * (1.0 + motionInfluence * 1.5);
-                float potentialPsi = potentialSpeed * across * (1.0 - radius * radius / r2);
-                float localFalloff = exp(-dot(relative, relative) / (radius * radius * 9.0)) * surfaceInfluence;
-                float psi = speed * fixedAcross + (potentialPsi - relativeSpeed * across) * localFalloff;
-
-                // Alternating vortices with jittered event times and strengths around f = St * U / D.
-                float halfPeriod = radius / max(_Strouhal * speed, 0.01);
-                float motionAmplifier = 1.0 + motionInfluence * 2.0;
-                float circulation = 2.2 * relativeSpeed * (2.0 * radius) * _WakeViolence * motionAmplifier;
-                float wake = 0;
-                float eventSlot = floor(_ElapsedTime / halfPeriod);
-                [unroll] for (int i = 0; i < 12; i++)
-                {
-                    float eventIndex = eventSlot - i;
-                    float eventJitter = hash21(float2(eventIndex, 17.31)) * 0.55;
-                    float eventTime = (eventIndex + eventJitter) * halfPeriod;
-                    float rawAge = _ElapsedTime - eventTime;
-                    float age = max(rawAge, 0.0);
-                    float born = step(0.0, rawAge) * smoothstep(0.0, halfPeriod * 0.12, rawAge);
-                    float shedDistance = radius * 1.08 + age * 0.86 * relativeSpeed;
-                    float parity = frac(abs(eventIndex) * 0.5) * 2.0;
-                    float vortexSign = parity < 1.0 ? 1.0 : -1.0;
-                    float lateralJitter = hash21(float2(eventIndex, 41.73));
-                    float lateral = vortexSign * radius * (0.38 + lateralJitter * 0.42);
-                    float2 vortex = float2(shedDistance, lateral);
-                    float2 d = float2(along, across) - vortex;
-                    float core2 = radius * radius * (0.045 + 0.008 * _WakeViolence) + 4.0 * _Viscosity * age;
-                    float attenuation = exp(-age / max(halfPeriod * 4.5, 0.01));
-                    float strengthJitter = 0.65 + hash21(float2(eventIndex, 83.17)) * 0.7;
-                    wake += vortexSign * circulation * strengthJitter * 0.0796 * log(1.0 + dot(d, d) / max(core2, 0.0001)) * attenuation * born;
-                }
-                float wakeSpread = sqrt(max(_WakeViolence, 0.01));
-                float wakeWidth = radius * (1.0 + max(along, 0.0) * 0.12 * wakeSpread * motionAmplifier);
-                float wakeEnvelope = exp(-pow(max(-along, 0.0) / radius, 2.0))
-                                   * exp(-pow(max(along, 0.0) / (radius * 20.0 * wakeSpread), 2.0))
-                                   * exp(-pow(across / max(wakeWidth, 0.01), 2.0));
-                psi += wake * _WakeStrength * wakeEnvelope * surfaceInfluence;
-
-                float fieldNoise = fbm(world * 0.54 - flow * (_ElapsedTime * speed * 0.3));
+                float currentAlong = fixedAlong;
                 float contourPhase = psi * _LineFrequency;
                 float contourDistance = abs(asin(sin(contourPhase))) / max(_LineFrequency * speed, 0.001);
                 float contourEdge = max(fwidth(contourDistance), 0.0005);
                 float contour = 1.0 - smoothstep(_LineWidth, _LineWidth + contourEdge, contourDistance);
-                float fill = smoothstep(0.14, 0.88, fieldNoise);
+                float turbulence = saturate(abs(vorticity) * 2.5);
+                float fill = saturate(0.22 + simulatedSpeed * 0.44 + turbulence * 0.28);
                 float3 color = lerp(_Deep.rgb, _Purple.rgb, 0.25 + fill * 0.55);
                 float contourShadow = 1.0 - smoothstep(_LineWidth + _BlackLineWidth, _LineWidth + _BlackLineWidth + contourEdge, contourDistance);
                 color = lerp(color, float3(0.0, 0.0, 0.0), contourShadow * 0.92);
-                color = lerp(color, _Line.rgb, contour * (0.58 + fill * 0.38));
+                color = lerp(color, _Line.rgb, contour * (0.58 + fill * 0.38 + turbulence * 0.18));
 
-                // Accent one of the same streamfunction contours so it bends with the sphere and wake.
-                float currentAlong = fixedAlong;
-                float currentTarget = -speed * radius * 1.05;
+                // The accent uses one contour from the numerical solver's streamfunction field.
+                // The solver fixes psi=0 at Current Origin; the sphere boundary is
+                // a constant-streamfunction contour at this value, so the accent
+                // now follows the actual computed flow around and behind it.
+                float spherePsi = speed * dot(_BallPosition.xz - _CurrentOrigin.xy, side);
+                float currentTarget = spherePsi;
                 float stripeDistance = abs(psi - currentTarget) / speed;
                 float stripeEdge = max(fwidth(stripeDistance), 0.0005);
                 float stripeShadow = 1.0 - smoothstep(_RedLineWidth + _BlackLineWidth, _RedLineWidth + _BlackLineWidth + stripeEdge, stripeDistance);
@@ -190,9 +113,7 @@ Shader "FluidCurrents/World Surface"
                 color = lerp(color, accent, stripe * 0.96);
 
                 // Contact shadow and distance haze give the flat field perspective depth.
-                float verticalResponse = surfaceInfluence;
-                float contact = exp(-(along * along / (radius * radius * 7.0) + across * across / (radius * radius * 2.2))) * verticalResponse;
-                color *= 1.0 - contact * 0.55;
+                color *= 1.0 - obstacle * 0.5;
                 float haze = smoothstep(25.0, 95.0, input.eyeDepth);
                 color = lerp(color, _Deep.rgb * 0.55, haze);
                 float grain = hash21(floor(world * 95.0 + _ElapsedTime * 0.1)) - 0.5;

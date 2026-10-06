@@ -1,6 +1,6 @@
 using UnityEngine;
 
-/// <summary>Controls the world-space fluid surface, its Karman wake, and the interactive sphere.</summary>
+/// <summary>Controls a 2D incompressible-flow simulation and its streamline rendering.</summary>
 [RequireComponent(typeof(Camera))]
 public class FluidCurrentDemo : MonoBehaviour
 {
@@ -11,10 +11,10 @@ public class FluidCurrentDemo : MonoBehaviour
     public Color redCurrent = new Color(1f, 0f, 0f);
     public Color goldCurrent = new Color(1f, 0.52f, 0f);
 
-    [Header("Flow model")]
+    [Header("Fluid properties")]
     [Min(0.1f)] public float flowVelocity = 1f;
-    [Range(0.12f, 0.30f)] public float strouhalNumber = 0.245f;
     [Range(0.001f, 0.15f)] public float kinematicViscosity = 0.028f;
+    [Header("Wake and visualization")]
     [Min(1f)] public float lineFrequency = 4.49f;
     [Range(0f, 2f)] public float wakeStrength = 2f;
     [Range(0.5f, 5f)] public float wakeViolence = 3f;
@@ -30,6 +30,7 @@ public class FluidCurrentDemo : MonoBehaviour
     private Renderer surfaceRenderer;
     private Material runtimeSurfaceMaterial;
     private FluidBallInteraction ball;
+    private FluidSimulation2D simulation;
 
     private void Awake()
     {
@@ -37,6 +38,7 @@ public class FluidCurrentDemo : MonoBehaviour
         targetCamera.clearFlags = CameraClearFlags.SolidColor;
         targetCamera.backgroundColor = deepColor;
         FindSceneObjects();
+        EnsureSimulation();
         if (surfaceRenderer != null) runtimeSurfaceMaterial = surfaceRenderer.material;
     }
 
@@ -51,6 +53,15 @@ public class FluidCurrentDemo : MonoBehaviour
         GameObject surface = GameObject.Find("Fluid Surface");
         surfaceRenderer = surface != null ? surface.GetComponent<Renderer>() : null;
         ball = FindObjectOfType<FluidBallInteraction>();
+        EnsureSimulation();
+    }
+
+    private void EnsureSimulation()
+    {
+        if (surfaceRenderer == null) return;
+        if (simulation == null) simulation = GetComponent<FluidSimulation2D>();
+        if (simulation == null) simulation = gameObject.AddComponent<FluidSimulation2D>();
+        simulation.Initialize(surfaceRenderer);
     }
 
     private void Update()
@@ -67,20 +78,21 @@ public class FluidCurrentDemo : MonoBehaviour
         runtimeSurfaceMaterial.SetVector("_FlowDirection", new Vector4(direction.x, direction.y, 0f, 0f));
         runtimeSurfaceMaterial.SetVector("_CurrentOrigin", new Vector4(currentOriginXZ.x, currentOriginXZ.y, 0f, 0f));
         runtimeSurfaceMaterial.SetVector("_BallPosition", ball.transform.position);
-        runtimeSurfaceMaterial.SetVector("_BallVelocity", ball.Velocity);
-        if (surfaceRenderer != null)
-            runtimeSurfaceMaterial.SetFloat("_SurfaceHeight", surfaceRenderer.transform.position.y);
-        runtimeSurfaceMaterial.SetFloat("_BallMotion", ball.MovementIntensity);
         runtimeSurfaceMaterial.SetFloat("_BallRadius", ball.Radius);
         runtimeSurfaceMaterial.SetFloat("_FlowVelocity", flowVelocity);
-        runtimeSurfaceMaterial.SetFloat("_Strouhal", strouhalNumber);
-        runtimeSurfaceMaterial.SetFloat("_Viscosity", kinematicViscosity);
         runtimeSurfaceMaterial.SetFloat("_LineFrequency", lineFrequency);
         runtimeSurfaceMaterial.SetFloat("_LineWidth", lineWidth);
         runtimeSurfaceMaterial.SetFloat("_RedLineWidth", redLineWidth);
         runtimeSurfaceMaterial.SetFloat("_BlackLineWidth", blackLineWidth);
-        runtimeSurfaceMaterial.SetFloat("_WakeStrength", wakeStrength);
-        runtimeSurfaceMaterial.SetFloat("_WakeViolence", wakeViolence);
         runtimeSurfaceMaterial.SetFloat("_ElapsedTime", Time.time);
+    }
+
+    private void LateUpdate()
+    {
+        if (surfaceRenderer == null || ball == null || runtimeSurfaceMaterial == null) return;
+        EnsureSimulation();
+        simulation.Advance(Time.deltaTime, ball, flowDirection, flowVelocity, kinematicViscosity,
+            wakeStrength, wakeViolence, currentOriginXZ);
+        runtimeSurfaceMaterial.SetTexture("_FlowField", simulation.FieldTexture);
     }
 }

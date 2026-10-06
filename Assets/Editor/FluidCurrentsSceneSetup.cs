@@ -66,7 +66,7 @@ public static class FluidCurrentsSceneSetup
         GameObject surface = GameObject.CreatePrimitive(PrimitiveType.Plane);
         surface.name = "Fluid Surface";
         surface.transform.position = new Vector3(0f, -0.03f, 10f);
-        surface.transform.localScale = new Vector3(24f, 1f, 24f);
+        surface.transform.localScale = new Vector3(6f, 1f, 6f);
         Collider surfaceCollider = surface.GetComponent<Collider>();
         if (surfaceCollider != null) Object.DestroyImmediate(surfaceCollider);
         surface.GetComponent<Renderer>().sharedMaterial = GetOrCreateMaterial(
