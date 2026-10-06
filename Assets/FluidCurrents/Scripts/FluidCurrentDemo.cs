@@ -17,8 +17,10 @@ public class FluidCurrentDemo : MonoBehaviour
     [Range(0.001f, 0.15f)] public float kinematicViscosity = 0.028f;
     [Min(1f)] public float lineFrequency = 4.49f;
     [Range(0f, 2f)] public float wakeStrength = 2f;
+    [Range(0.5f, 5f)] public float wakeViolence = 3f;
     [Range(0.005f, 0.2f)] public float lineWidth = 0.045f;
     [Range(0.02f, 0.4f)] public float redLineWidth = 0.16f;
+    [Range(0f, 0.2f)] public float blackLineWidth = 0.04f;
     public Vector2 flowDirection = new Vector2(0.22f, -0.41f);
 
     [Header("Fixed accent current")]
@@ -72,7 +74,9 @@ public class FluidCurrentDemo : MonoBehaviour
         runtimeSurfaceMaterial.SetFloat("_LineFrequency", lineFrequency);
         runtimeSurfaceMaterial.SetFloat("_LineWidth", lineWidth);
         runtimeSurfaceMaterial.SetFloat("_RedLineWidth", redLineWidth);
+        runtimeSurfaceMaterial.SetFloat("_BlackLineWidth", blackLineWidth);
         runtimeSurfaceMaterial.SetFloat("_WakeStrength", wakeStrength);
+        runtimeSurfaceMaterial.SetFloat("_WakeViolence", wakeViolence);
         runtimeSurfaceMaterial.SetFloat("_ElapsedTime", Time.time);
     }
 }

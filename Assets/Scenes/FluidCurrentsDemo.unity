@@ -285,8 +285,10 @@ MonoBehaviour:
   kinematicViscosity: 0.028
   lineFrequency: 4.49
   wakeStrength: 2
+  wakeViolence: 3
   lineWidth: 0.045
   redLineWidth: 0.16
+  blackLineWidth: 0.04
   flowDirection: {x: 0.22, y: -0.41}
   currentOriginXZ: {x: 0.22, y: 8}
 --- !u!81 &811440365

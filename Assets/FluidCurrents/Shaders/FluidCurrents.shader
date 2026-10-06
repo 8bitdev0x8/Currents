@@ -15,7 +15,9 @@ Shader "FluidCurrents/World Surface"
         _LineFrequency ("Line frequency", Float) = 4.49
         _LineWidth ("Streamline width", Range(0.005, 0.2)) = 0.045
         _RedLineWidth ("Red current width", Range(0.02, 0.4)) = 0.16
+        _BlackLineWidth ("Black outline width", Range(0, 0.2)) = 0.04
         _WakeStrength ("Wake strength", Float) = 2
+        _WakeViolence ("Wake violence", Range(0.5, 5)) = 3
         _BallPosition ("Sphere position", Vector) = (0, 1.5, 8, 0)
         _BallRadius ("Sphere radius", Float) = 1.5
         _ElapsedTime ("Elapsed time", Float) = 0
@@ -47,7 +49,9 @@ Shader "FluidCurrents/World Surface"
             float _LineFrequency;
             float _LineWidth;
             float _RedLineWidth;
+            float _BlackLineWidth;
             float _WakeStrength;
+            float _WakeViolence;
             float4 _BallPosition;
             float _BallRadius;
             float _ElapsedTime;
@@ -120,7 +124,7 @@ Shader "FluidCurrents/World Surface"
                 float phase = frac(_ElapsedTime / halfPeriod);
                 float cycle = floor(_ElapsedTime / halfPeriod);
                 float spacing = 0.86 * speed * halfPeriod;
-                float circulation = 2.2 * speed * (2.0 * radius);
+                float circulation = 2.2 * speed * (2.0 * radius) * _WakeViolence;
                 float wake = 0;
                 [unroll] for (int i = 0; i < 8; i++)
                 {
@@ -128,16 +132,17 @@ Shader "FluidCurrents/World Surface"
                     float shedDistance = radius * 1.08 + age * 0.86 * speed;
                     float parity = frac((i + cycle) * 0.5) * 2.0;
                     float vortexSign = parity < 1.0 ? 1.0 : -1.0;
-                    float lateral = vortexSign * radius * (0.52 + 0.06 * sin(age * speed / radius));
+                    float lateral = vortexSign * radius * (0.52 + 0.04 * _WakeViolence * sin(age * speed / radius));
                     float2 vortex = float2(shedDistance, lateral);
                     float2 d = float2(along, across) - vortex;
-                    float core2 = radius * radius * 0.045 + 4.0 * _Viscosity * age;
+                    float core2 = radius * radius * (0.045 + 0.008 * _WakeViolence) + 4.0 * _Viscosity * age;
                     float attenuation = exp(-age / max(halfPeriod * 7.0, 0.01));
                     wake += vortexSign * circulation * 0.0796 * log(1.0 + dot(d, d) / max(core2, 0.0001)) * attenuation;
                 }
-                float wakeWidth = radius * (1.0 + max(along, 0.0) * 0.12);
+                float wakeSpread = sqrt(max(_WakeViolence, 0.01));
+                float wakeWidth = radius * (1.0 + max(along, 0.0) * 0.12 * wakeSpread);
                 float wakeEnvelope = exp(-pow(max(-along, 0.0) / radius, 2.0))
-                                   * exp(-pow(max(along, 0.0) / (radius * 20.0), 2.0))
+                                   * exp(-pow(max(along, 0.0) / (radius * 20.0 * wakeSpread), 2.0))
                                    * exp(-pow(across / max(wakeWidth, 0.01), 2.0));
                 psi += wake * _WakeStrength * wakeEnvelope;
 
@@ -149,7 +154,7 @@ Shader "FluidCurrents/World Surface"
                 float contour = 1.0 - smoothstep(_LineWidth, _LineWidth + contourEdge, contourDistance);
                 float fill = smoothstep(0.14, 0.88, fieldNoise);
                 float3 color = lerp(_Deep.rgb, _Purple.rgb, 0.25 + fill * 0.55);
-                float contourShadow = 1.0 - smoothstep(_LineWidth * 1.75, _LineWidth * 1.75 + contourEdge, contourDistance);
+                float contourShadow = 1.0 - smoothstep(_LineWidth + _BlackLineWidth, _LineWidth + _BlackLineWidth + contourEdge, contourDistance);
                 color = lerp(color, float3(0.0, 0.0, 0.0), contourShadow * 0.92);
                 color = lerp(color, _Line.rgb, contour * (0.58 + fill * 0.38));
 
@@ -158,7 +163,7 @@ Shader "FluidCurrents/World Surface"
                 float currentTarget = -speed * radius * 1.05;
                 float stripeDistance = abs(psi - currentTarget) / speed;
                 float stripeEdge = max(fwidth(stripeDistance), 0.0005);
-                float stripeShadow = 1.0 - smoothstep(_RedLineWidth * 1.55, _RedLineWidth * 1.55 + stripeEdge, stripeDistance);
+                float stripeShadow = 1.0 - smoothstep(_RedLineWidth + _BlackLineWidth, _RedLineWidth + _BlackLineWidth + stripeEdge, stripeDistance);
                 color = lerp(color, float3(0.0, 0.0, 0.0), stripeShadow * 0.96);
                 float stripe = 1.0 - smoothstep(_RedLineWidth, _RedLineWidth + stripeEdge, stripeDistance);
                 float goldBlend = smoothstep(radius * 2.5, radius * 11.0, currentAlong);

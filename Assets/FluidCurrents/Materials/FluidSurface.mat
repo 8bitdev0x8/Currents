@@ -26,6 +26,7 @@ Material:
     m_Ints: []
     m_Floats:
     - _BallRadius: 1.5
+    - _BlackLineWidth: 0.04
     - _ElapsedTime: 0
     - _FlowVelocity: 1
     - _LineFrequency: 4.49
@@ -34,6 +35,7 @@ Material:
     - _Strouhal: 0.245
     - _Viscosity: 0.028
     - _WakeStrength: 2
+    - _WakeViolence: 3
     m_Colors:
     - _BallPosition: {r: 0, g: 0, b: 8, a: 0}
     - _CurrentOrigin: {r: 0.22, g: 8, b: 0, a: 0}
