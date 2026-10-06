@@ -67,6 +67,8 @@ public class FluidCurrentDemo : MonoBehaviour
         runtimeSurfaceMaterial.SetVector("_FlowDirection", new Vector4(direction.x, direction.y, 0f, 0f));
         runtimeSurfaceMaterial.SetVector("_CurrentOrigin", new Vector4(currentOriginXZ.x, currentOriginXZ.y, 0f, 0f));
         runtimeSurfaceMaterial.SetVector("_BallPosition", ball.transform.position);
+        if (surfaceRenderer != null)
+            runtimeSurfaceMaterial.SetFloat("_SurfaceHeight", surfaceRenderer.transform.position.y);
         runtimeSurfaceMaterial.SetFloat("_BallMotion", ball.MovementIntensity);
         runtimeSurfaceMaterial.SetFloat("_BallRadius", ball.Radius);
         runtimeSurfaceMaterial.SetFloat("_FlowVelocity", flowVelocity);

@@ -21,6 +21,7 @@ Shader "FluidCurrents/World Surface"
         _BallMotion ("Sphere motion", Float) = 0
         _BallPosition ("Sphere position", Vector) = (0, 1.5, 8, 0)
         _BallRadius ("Sphere radius", Float) = 1.5
+        _SurfaceHeight ("Fluid surface height", Float) = -0.03
         _ElapsedTime ("Elapsed time", Float) = 0
     }
     SubShader
@@ -56,6 +57,7 @@ Shader "FluidCurrents/World Surface"
             float _BallMotion;
             float4 _BallPosition;
             float _BallRadius;
+            float _SurfaceHeight;
             float _ElapsedTime;
 
             struct appdata { float4 vertex : POSITION; };
@@ -117,10 +119,13 @@ Shader "FluidCurrents/World Surface"
 
                 // Keep the background streamlines fixed in world space and localize sphere influence.
                 float r2 = max(along * along + across * across, radius * radius * 0.72);
-                float flowWave = 0.16 * sin(fixedAlong * 0.65 - _ElapsedTime * speed * 0.9);
-                float potentialSpeed = speed * (1.0 + saturate(_BallMotion) * 1.5);
+                float flowWave = 0.24 * sin(fixedAlong * 0.65 - _ElapsedTime * speed * 0.9)
+                               + 0.07 * sin(fixedAlong * 1.35 - _ElapsedTime * speed * 1.7);
+                float clearance = _BallPosition.y - radius - _SurfaceHeight;
+                float surfaceInfluence = 1.0 - smoothstep(0.0, 0.015, max(clearance, 0.0));
+                float motionInfluence = saturate(_BallMotion) * surfaceInfluence;
+                float potentialSpeed = speed * (1.0 + motionInfluence * 1.5);
                 float potentialPsi = potentialSpeed * across * (1.0 - radius * radius / r2);
-                float surfaceInfluence = exp(-abs(_BallPosition.y) / max(radius * 2.0, 0.01));
                 float localFalloff = exp(-dot(relative, relative) / (radius * radius * 9.0)) * surfaceInfluence;
                 float psi = speed * (fixedAcross + flowWave)
                           + (potentialPsi - speed * (across + flowWave)) * localFalloff;
@@ -129,8 +134,8 @@ Shader "FluidCurrents/World Surface"
                 float halfPeriod = radius / max(_Strouhal * speed, 0.01);
                 float phase = frac(_ElapsedTime / halfPeriod);
                 float cycle = floor(_ElapsedTime / halfPeriod);
-                float convectiveSpeed = speed * (1.0 + saturate(_BallMotion) * 0.65);
-                float motionAmplifier = 1.0 + saturate(_BallMotion) * 2.0;
+                float convectiveSpeed = speed * (1.0 + motionInfluence * 0.65);
+                float motionAmplifier = 1.0 + motionInfluence * 2.0;
                 float circulation = 2.2 * convectiveSpeed * (2.0 * radius) * _WakeViolence * motionAmplifier;
                 float wake = 0;
                 [unroll] for (int i = 0; i < 8; i++)
@@ -151,9 +156,9 @@ Shader "FluidCurrents/World Surface"
                 float wakeEnvelope = exp(-pow(max(-along, 0.0) / radius, 2.0))
                                    * exp(-pow(max(along, 0.0) / (radius * 20.0 * wakeSpread), 2.0))
                                    * exp(-pow(across / max(wakeWidth, 0.01), 2.0));
-                psi += wake * _WakeStrength * wakeEnvelope;
+                psi += wake * _WakeStrength * wakeEnvelope * surfaceInfluence;
 
-                float fieldNoise = fbm(world * 0.54 - flow * (_ElapsedTime * speed * 0.18));
+                float fieldNoise = fbm(world * 0.54 - flow * (_ElapsedTime * speed * 0.3));
                 psi += (fieldNoise - 0.5) * speed * radius * 0.045;
                 float contourPhase = psi * _LineFrequency;
                 float contourDistance = abs(asin(sin(contourPhase))) / max(_LineFrequency * speed, 0.001);
