@@ -27,18 +27,20 @@ Material:
     m_Floats:
     - _BallRadius: 1.5
     - _ElapsedTime: 0
-    - _FlowVelocity: 2.6
-    - _LineFrequency: 11
-    - _Strouhal: 0.2
-    - _Viscosity: 0.025
-    - _WakeStrength: 1
+    - _FlowVelocity: 1
+    - _LineFrequency: 4.49
+    - _LineWidth: 0.045
+    - _Strouhal: 0.245
+    - _Viscosity: 0.028
+    - _WakeStrength: 2
     m_Colors:
-    - _BallPosition: {r: 0, g: 1.5, b: 8, a: 0}
-    - _Deep: {r: 0.008, g: 0.006, b: 0.014, a: 1}
-    - _FlowDirection: {r: 0.88, g: -0.47, b: 0, a: 0}
-    - _GoldCurrent: {r: 1, g: 0.44, b: 0.035, a: 1}
-    - _Line: {r: 0.82, g: 0.69, b: 0.91, a: 1}
-    - _Purple: {r: 0.18, g: 0.075, b: 0.24, a: 1}
-    - _RedCurrent: {r: 0.96, g: 0.035, b: 0.075, a: 1}
+    - _BallPosition: {r: 0, g: 0.75, b: 8, a: 0}
+    - _CurrentOrigin: {r: 0.22, g: 8, b: 0, a: 0}
+    - _Deep: {r: 0.004, g: 0.003, b: 0.008, a: 1}
+    - _FlowDirection: {r: 0.22, g: -0.41, b: 0, a: 0}
+    - _GoldCurrent: {r: 1, g: 0.52, b: 0, a: 1}
+    - _Line: {r: 0.86, g: 0.72, b: 0.94, a: 1}
+    - _Purple: {r: 0.16, g: 0.055, b: 0.21, a: 1}
+    - _RedCurrent: {r: 1, g: 0, b: 0, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

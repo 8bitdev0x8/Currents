@@ -275,18 +275,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e4cbd982d2c98bb43bd1e4e63dc283f9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FluidCurrentDemo
-  deepColor: {r: 0.008, g: 0.006, b: 0.014, a: 1}
-  purpleColor: {r: 0.18, g: 0.075, b: 0.24, a: 1}
-  lineColor: {r: 0.82, g: 0.69, b: 0.91, a: 1}
-  redCurrent: {r: 0.96, g: 0.035, b: 0.075, a: 1}
-  goldCurrent: {r: 1, g: 0.44, b: 0.035, a: 1}
-  flowVelocity: 2.6
-  strouhalNumber: 0.2
-  kinematicViscosity: 0.025
-  lineFrequency: 11
-  wakeStrength: 1
-  flowDirection: {x: 0.88, y: -0.47}
-  currentOriginXZ: {x: 0, y: 8}
+  deepColor: {r: 0.004, g: 0.003, b: 0.008, a: 1}
+  purpleColor: {r: 0.16, g: 0.055, b: 0.21, a: 1}
+  lineColor: {r: 0.86, g: 0.72, b: 0.94, a: 1}
+  redCurrent: {r: 1, g: 0, b: 0, a: 1}
+  goldCurrent: {r: 1, g: 0.52, b: 0, a: 1}
+  flowVelocity: 1
+  strouhalNumber: 0.245
+  kinematicViscosity: 0.028
+  lineFrequency: 4.49
+  wakeStrength: 2
+  lineWidth: 0.045
+  flowDirection: {x: 0.22, y: -0.41}
+  currentOriginXZ: {x: 0.22, y: 8}
 --- !u!81 &811440365
 AudioListener:
   m_ObjectHideFlags: 0

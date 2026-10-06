@@ -5,22 +5,23 @@ using UnityEngine;
 public class FluidCurrentDemo : MonoBehaviour
 {
     [Header("Surface palette")]
-    public Color deepColor = new Color(0.008f, 0.006f, 0.014f);
-    public Color purpleColor = new Color(0.18f, 0.075f, 0.24f);
-    public Color lineColor = new Color(0.82f, 0.69f, 0.91f);
-    public Color redCurrent = new Color(0.96f, 0.035f, 0.075f);
-    public Color goldCurrent = new Color(1f, 0.44f, 0.035f);
+    public Color deepColor = new Color(0.004f, 0.003f, 0.008f);
+    public Color purpleColor = new Color(0.16f, 0.055f, 0.21f);
+    public Color lineColor = new Color(0.86f, 0.72f, 0.94f);
+    public Color redCurrent = new Color(1f, 0f, 0f);
+    public Color goldCurrent = new Color(1f, 0.52f, 0f);
 
     [Header("Flow model")]
-    [Min(0.1f)] public float flowVelocity = 2.6f;
-    [Range(0.12f, 0.30f)] public float strouhalNumber = 0.20f;
-    [Range(0.001f, 0.15f)] public float kinematicViscosity = 0.025f;
-    [Min(1f)] public float lineFrequency = 11f;
-    [Range(0f, 2f)] public float wakeStrength = 1f;
-    public Vector2 flowDirection = new Vector2(0.88f, -0.47f);
+    [Min(0.1f)] public float flowVelocity = 1f;
+    [Range(0.12f, 0.30f)] public float strouhalNumber = 0.245f;
+    [Range(0.001f, 0.15f)] public float kinematicViscosity = 0.028f;
+    [Min(1f)] public float lineFrequency = 4.49f;
+    [Range(0f, 2f)] public float wakeStrength = 2f;
+    [Range(0.005f, 0.2f)] public float lineWidth = 0.045f;
+    public Vector2 flowDirection = new Vector2(0.22f, -0.41f);
 
     [Header("Fixed accent current")]
-    public Vector2 currentOriginXZ = new Vector2(0f, 8f);
+    public Vector2 currentOriginXZ = new Vector2(0.22f, 8f);
 
     private Camera targetCamera;
     private Renderer surfaceRenderer;
@@ -31,7 +32,7 @@ public class FluidCurrentDemo : MonoBehaviour
     {
         targetCamera = GetComponent<Camera>();
         targetCamera.clearFlags = CameraClearFlags.SolidColor;
-        targetCamera.backgroundColor = new Color(0.008f, 0.006f, 0.014f);
+        targetCamera.backgroundColor = deepColor;
         FindSceneObjects();
         if (surfaceRenderer != null) runtimeSurfaceMaterial = surfaceRenderer.material;
     }
@@ -68,6 +69,7 @@ public class FluidCurrentDemo : MonoBehaviour
         runtimeSurfaceMaterial.SetFloat("_Strouhal", strouhalNumber);
         runtimeSurfaceMaterial.SetFloat("_Viscosity", kinematicViscosity);
         runtimeSurfaceMaterial.SetFloat("_LineFrequency", lineFrequency);
+        runtimeSurfaceMaterial.SetFloat("_LineWidth", lineWidth);
         runtimeSurfaceMaterial.SetFloat("_WakeStrength", wakeStrength);
         runtimeSurfaceMaterial.SetFloat("_ElapsedTime", Time.time);
     }

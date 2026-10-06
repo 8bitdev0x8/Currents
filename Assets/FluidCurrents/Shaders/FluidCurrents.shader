@@ -2,18 +2,19 @@ Shader "FluidCurrents/World Surface"
 {
     Properties
     {
-        _Deep ("Deep near-black", Color) = (0.008, 0.006, 0.014, 1)
-        _Purple ("Violet field", Color) = (0.18, 0.075, 0.24, 1)
-        _Line ("Silver-lavender streamlines", Color) = (0.82, 0.69, 0.91, 1)
-        _RedCurrent ("Vermilion current", Color) = (0.96, 0.035, 0.075, 1)
-        _GoldCurrent ("Amber current", Color) = (1, 0.44, 0.035, 1)
-        _FlowDirection ("Flow direction", Vector) = (0.88, -0.47, 0, 0)
-        _CurrentOrigin ("Fixed current origin", Vector) = (0, 8, 0, 0)
-        _FlowVelocity ("Flow velocity", Float) = 2.6
-        _Strouhal ("Strouhal number", Float) = 0.2
-        _Viscosity ("Kinematic viscosity", Float) = 0.025
-        _LineFrequency ("Line frequency", Float) = 11
-        _WakeStrength ("Wake strength", Float) = 1
+        _Deep ("Deep near-black", Color) = (0.004, 0.003, 0.008, 1)
+        _Purple ("Violet field", Color) = (0.16, 0.055, 0.21, 1)
+        _Line ("Silver-lavender streamlines", Color) = (0.86, 0.72, 0.94, 1)
+        _RedCurrent ("Vermilion current", Color) = (1, 0, 0, 1)
+        _GoldCurrent ("Amber current", Color) = (1, 0.52, 0, 1)
+        _FlowDirection ("Flow direction", Vector) = (0.22, -0.41, 0, 0)
+        _CurrentOrigin ("Fixed current origin", Vector) = (0.22, 8, 0, 0)
+        _FlowVelocity ("Flow velocity", Float) = 1
+        _Strouhal ("Strouhal number", Float) = 0.245
+        _Viscosity ("Kinematic viscosity", Float) = 0.028
+        _LineFrequency ("Line frequency", Float) = 4.49
+        _LineWidth ("Streamline width", Range(0.005, 0.2)) = 0.045
+        _WakeStrength ("Wake strength", Float) = 2
         _BallPosition ("Sphere position", Vector) = (0, 1.5, 8, 0)
         _BallRadius ("Sphere radius", Float) = 1.5
         _ElapsedTime ("Elapsed time", Float) = 0
@@ -43,6 +44,7 @@ Shader "FluidCurrents/World Surface"
             float _Strouhal;
             float _Viscosity;
             float _LineFrequency;
+            float _LineWidth;
             float _WakeStrength;
             float4 _BallPosition;
             float _BallRadius;
@@ -139,29 +141,26 @@ Shader "FluidCurrents/World Surface"
 
                 float fieldNoise = fbm(world * 0.54);
                 psi += (fieldNoise - 0.5) * speed * radius * 0.045;
-                float contour = pow(saturate(1.0 - abs(sin(psi * _LineFrequency))), 15.0);
+                float contourPhase = psi * _LineFrequency;
+                float contourDistance = abs(asin(sin(contourPhase))) / max(_LineFrequency * speed, 0.001);
+                float contourEdge = max(fwidth(contourDistance), 0.0005);
+                float contour = 1.0 - smoothstep(_LineWidth, _LineWidth + contourEdge, contourDistance);
                 float fill = smoothstep(0.14, 0.88, fieldNoise);
                 float3 color = lerp(_Deep.rgb, _Purple.rgb, 0.25 + fill * 0.55);
                 color = lerp(color, _Line.rgb, contour * (0.58 + fill * 0.38));
 
-                // Anchor the red/gold accent in world space so moving the sphere only changes its wake.
+                // Accent one of the same streamfunction contours so it bends with the sphere and wake.
                 float currentAlong = fixedAlong;
-                float currentAcross = fixedAcross;
-                float baseCurrentCurve = -radius * 1.05 + sin(currentAlong * 0.075) * radius * 0.14;
-                float ballAlongCurrent = dot(center - _CurrentOrigin.xy, flow);
-                float ballAcrossCurrent = dot(center - _CurrentOrigin.xy, side);
-                float ballCurveOffset = ballAcrossCurrent - (-radius * 1.05 + sin(ballAlongCurrent * 0.075) * radius * 0.14);
-                float alongResponse = exp(-pow((currentAlong - ballAlongCurrent) / (radius * 1.65), 2.0));
-                float proximityResponse = exp(-pow(ballCurveOffset / (radius * 1.25), 2.0));
-                float sideOfLine = ballCurveOffset >= 0.0 ? 1.0 : -1.0;
-                float verticalResponse = exp(-pow(_BallPosition.y / (radius * 2.0), 2.0));
-                float currentCurve = baseCurrentCurve - sideOfLine * radius * 1.15 * alongResponse * proximityResponse * verticalResponse;
-                float stripe = 1.0 - smoothstep(radius * 0.035, radius * 0.09, abs(currentAcross - currentCurve));
+                float currentTarget = -speed * radius * 1.05;
+                float stripeDistance = abs(psi - currentTarget) / speed;
+                float stripeEdge = max(fwidth(stripeDistance), 0.0005);
+                float stripe = 1.0 - smoothstep(_LineWidth * 1.7, _LineWidth * 1.7 + stripeEdge, stripeDistance);
                 float goldBlend = smoothstep(radius * 2.5, radius * 11.0, currentAlong);
                 float3 accent = lerp(_RedCurrent.rgb, _GoldCurrent.rgb, goldBlend);
                 color = lerp(color, accent, stripe * 0.96);
 
                 // Contact shadow and distance haze give the flat field perspective depth.
+                float verticalResponse = exp(-pow(_BallPosition.y / (radius * 2.0), 2.0));
                 float contact = exp(-(along * along / (radius * radius * 7.0) + across * across / (radius * radius * 2.2))) * verticalResponse;
                 color *= 1.0 - contact * 0.55;
                 float haze = smoothstep(25.0, 95.0, input.eyeDepth);

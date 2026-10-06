@@ -53,7 +53,7 @@ public static class FluidCurrentsSceneSetup
         cameraObject.tag = "MainCamera";
         var camera = cameraObject.AddComponent<Camera>();
         camera.clearFlags = CameraClearFlags.SolidColor;
-        camera.backgroundColor = new Color(0.008f, 0.006f, 0.014f);
+        camera.backgroundColor = new Color(0.004f, 0.003f, 0.008f);
         camera.fieldOfView = 47f;
         camera.nearClipPlane = 0.1f;
         camera.farClipPlane = 180f;
@@ -74,11 +74,11 @@ public static class FluidCurrentsSceneSetup
             surfaceShader,
             material =>
             {
-                material.SetColor("_Deep", new Color(0.008f, 0.006f, 0.014f));
-                material.SetColor("_Purple", new Color(0.18f, 0.075f, 0.24f));
-                material.SetColor("_Line", new Color(0.82f, 0.69f, 0.91f));
-                material.SetColor("_RedCurrent", new Color(0.96f, 0.035f, 0.075f));
-                material.SetColor("_GoldCurrent", new Color(1f, 0.44f, 0.035f));
+                material.SetColor("_Deep", new Color(0.004f, 0.003f, 0.008f));
+                material.SetColor("_Purple", new Color(0.16f, 0.055f, 0.21f));
+                material.SetColor("_Line", new Color(0.86f, 0.72f, 0.94f));
+                material.SetColor("_RedCurrent", Color.red);
+                material.SetColor("_GoldCurrent", new Color(1f, 0.52f, 0f));
             });
 
         const float ballRadius = 1.5f;
