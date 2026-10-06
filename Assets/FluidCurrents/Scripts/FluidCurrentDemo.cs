@@ -130,8 +130,6 @@ public class FluidCurrentDemo : MonoBehaviour
         runtimeSurfaceMaterial.SetFloat("_RedLineWidth", redLineWidth);
         runtimeSurfaceMaterial.SetFloat("_BlackLineWidth", blackLineWidth);
         runtimeSurfaceMaterial.SetFloat("_EdgeFadeDistance", edgeFadeDistance);
-        runtimeSurfaceMaterial.SetFloat("_RainbowFadeDistance", rainbowFadeDistance);
-        runtimeSurfaceMaterial.SetFloat("_RainbowCycleLength", rainbowCycleLength);
         runtimeSurfaceMaterial.SetFloat("_ElapsedTime", Time.time);
     }
 
@@ -408,11 +406,12 @@ public class FluidCurrentDemo : MonoBehaviour
         if (surfaceRenderer == null || ball == null || runtimeSurfaceMaterial == null) return;
         EnsureSimulation();
         simulation.Advance(Time.deltaTime, ball, flowDirection, flowVelocity, kinematicViscosity,
-            wakeStrength, wakeViolence, currentOriginXZ, simulationRate, normalFlowRecovery);
+            wakeStrength, wakeViolence, currentOriginXZ, simulationRate, normalFlowRecovery,
+            rainbowFadeDistance, rainbowCycleLength);
         Bounds bounds = surfaceRenderer.bounds;
         runtimeSurfaceMaterial.SetVector("_FieldBounds",
             new Vector4(bounds.min.x, bounds.min.z, bounds.size.x, bounds.size.z));
-        runtimeSurfaceMaterial.SetVector("_BallPosition", ball.transform.position);
         runtimeSurfaceMaterial.SetTexture("_FlowField", simulation.FieldTexture);
+        runtimeSurfaceMaterial.SetTexture("_RainbowField", simulation.RainbowTexture);
     }
 }

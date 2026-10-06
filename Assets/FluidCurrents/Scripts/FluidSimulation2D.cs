@@ -30,8 +30,14 @@ public sealed class FluidSimulation2D : MonoBehaviour
     private float ballVelocityZ;
     private float currentOriginX;
     private float currentOriginZ;
+    private float rainbowFadeDistance = 36f;
+    private float rainbowCycleLength = 14f;
+    private float rainbowPhase;
+    private float previousBallX;
+    private float previousBallZ;
     private bool velocityInitialized;
     private bool initialized;
+    private bool rainbowEmitterInitialized;
 
     private float[] u;
     private float[] v;
@@ -43,11 +49,20 @@ public sealed class FluidSimulation2D : MonoBehaviour
     private float[] vorticity;
     private float[] streamfunction;
     private float[] streamfunctionNext;
+    private float[] rainbowCos;
+    private float[] rainbowSin;
+    private float[] rainbowStrength;
+    private float[] rainbowCosNext;
+    private float[] rainbowSinNext;
+    private float[] rainbowStrengthNext;
     private bool[] solid;
     private Color[] pixels;
+    private Color[] rainbowPixels;
     private Texture2D fieldTexture;
+    private Texture2D rainbowTexture;
 
     public Texture2D FieldTexture => fieldTexture;
+    public Texture2D RainbowTexture => rainbowTexture;
 
     public void Initialize(Renderer surface)
     {
@@ -73,8 +88,15 @@ public sealed class FluidSimulation2D : MonoBehaviour
         vorticity = new float[arrayLength];
         streamfunction = new float[arrayLength];
         streamfunctionNext = new float[arrayLength];
+        rainbowCos = new float[arrayLength];
+        rainbowSin = new float[arrayLength];
+        rainbowStrength = new float[arrayLength];
+        rainbowCosNext = new float[arrayLength];
+        rainbowSinNext = new float[arrayLength];
+        rainbowStrengthNext = new float[arrayLength];
         solid = new bool[arrayLength];
         pixels = new Color[Resolution * Resolution];
+        rainbowPixels = new Color[Resolution * Resolution];
         fieldTexture = new Texture2D(Resolution, Resolution, TextureFormat.RGBAFloat, false, true)
         {
             name = "Live Fluid Velocity and Streamfunction",
@@ -82,8 +104,16 @@ public sealed class FluidSimulation2D : MonoBehaviour
             wrapMode = TextureWrapMode.Clamp,
             hideFlags = HideFlags.DontSave
         };
+        rainbowTexture = new Texture2D(Resolution, Resolution, TextureFormat.RGBA32, false, true)
+        {
+            name = "Advected Rainbow Wake",
+            filterMode = FilterMode.Bilinear,
+            wrapMode = TextureWrapMode.Clamp,
+            hideFlags = HideFlags.DontSave
+        };
         initialized = true;
         UploadField();
+        UploadRainbowField();
     }
 
     public void Advance(
@@ -96,7 +126,9 @@ public sealed class FluidSimulation2D : MonoBehaviour
         float currentWakeViolence,
         Vector2 currentOrigin,
         float simulationRate,
-        float flowRecoveryRate)
+        float flowRecoveryRate,
+        float currentRainbowFadeDistance,
+        float currentRainbowCycleLength)
     {
         if (!initialized || ball == null) return;
 
@@ -113,6 +145,14 @@ public sealed class FluidSimulation2D : MonoBehaviour
         ballVelocityZ = ball.Velocity.z;
         currentOriginX = currentOrigin.x;
         currentOriginZ = currentOrigin.y;
+        rainbowFadeDistance = Mathf.Max(currentRainbowFadeDistance, 0.1f);
+        rainbowCycleLength = Mathf.Max(currentRainbowCycleLength, 0.1f);
+        if (!rainbowEmitterInitialized)
+        {
+            previousBallX = ballX;
+            previousBallZ = ballZ;
+            rainbowEmitterInitialized = true;
+        }
         fixedStep = 1f / Mathf.Clamp(simulationRate, 15f, 60f);
         bool firstVelocityFrame = !velocityInitialized;
         if (!velocityInitialized)
@@ -153,6 +193,7 @@ public sealed class FluidSimulation2D : MonoBehaviour
         {
             ComputeStreamfunction();
             UploadField();
+            UploadRainbowField();
         }
     }
 
@@ -176,6 +217,7 @@ public sealed class FluidSimulation2D : MonoBehaviour
         ApplySolidVelocity();
         AddVorticityConfinement(dt);
         Project();
+        AdvectRainbow(dt);
     }
 
     private void BuildObstacleMask()
@@ -333,6 +375,94 @@ public sealed class FluidSimulation2D : MonoBehaviour
         SetVelocityBoundaries();
     }
 
+    private void AdvectRainbow(float dt)
+    {
+        float segmentX = ballX - previousBallX;
+        float segmentZ = ballZ - previousBallZ;
+        float segmentLength = Mathf.Sqrt(segmentX * segmentX + segmentZ * segmentZ);
+        float segmentLengthSquared = segmentX * segmentX + segmentZ * segmentZ;
+        float ambientSpeed = Mathf.Sqrt(ambientX * ambientX + ambientZ * ambientZ);
+        float decay = Mathf.Exp(-Mathf.Max(ambientSpeed, 0.1f) * dt / rainbowFadeDistance);
+        float bandWidth = Mathf.Max(cellSize * 1.5f, obstacleRadius * 0.3f);
+        float phaseStart = rainbowPhase;
+
+        for (int z = 1; z <= Resolution; z++)
+        {
+            float worldZ = originZ + (z - 0.5f) * cellSize;
+            for (int x = 1; x <= Resolution; x++)
+            {
+                int index = Index(x, z);
+                if (solid[index])
+                {
+                    rainbowCosNext[index] = 0f;
+                    rainbowSinNext[index] = 0f;
+                    rainbowStrengthNext[index] = 0f;
+                    continue;
+                }
+
+                float backX = Mathf.Clamp(x - dt * u[index] / cellSize, 0.5f, Resolution + 0.5f);
+                float backZ = Mathf.Clamp(z - dt * v[index] / cellSize, 0.5f, Resolution + 0.5f);
+                float oldCos = Sample(rainbowCos, backX, backZ);
+                float oldSin = Sample(rainbowSin, backX, backZ);
+                float oldStrength = Mathf.Clamp01(Sample(rainbowStrength, backX, backZ) * decay);
+
+                float worldX = originX + (x - 0.5f) * cellSize;
+                float pathT = segmentLengthSquared > 0.000001f
+                    ? Mathf.Clamp01(((worldX - previousBallX) * segmentX + (worldZ - previousBallZ) * segmentZ) / segmentLengthSquared)
+                    : 1f;
+                float closestX = previousBallX + segmentX * pathT;
+                float closestZ = previousBallZ + segmentZ * pathT;
+                float offsetX = worldX - closestX;
+                float offsetZ = worldZ - closestZ;
+                float distanceFromPath = Mathf.Sqrt(offsetX * offsetX + offsetZ * offsetZ);
+                float surfaceDistance = Mathf.Abs(distanceFromPath - obstacleRadius);
+                float injection = contact > 0.02f && obstacleRadius > cellSize * 0.5f
+                    && surfaceDistance < bandWidth * 3f
+                    ? 0.2f * contact * Mathf.Exp(-(surfaceDistance * surfaceDistance) / (bandWidth * bandWidth))
+                    : 0f;
+
+                float combinedWeight = oldStrength + injection;
+                if (combinedWeight > 0.0001f)
+                {
+                    float cos = oldCos * oldStrength;
+                    float sin = oldSin * oldStrength;
+                    if (injection > 0f)
+                    {
+                        float phase = phaseStart + (segmentLength * pathT
+                            + (offsetX * ambientX + offsetZ * ambientZ) * 0.3f) / rainbowCycleLength;
+                        float angle = phase * (Mathf.PI * 2f);
+                        cos += Mathf.Cos(angle) * injection;
+                        sin += Mathf.Sin(angle) * injection;
+                    }
+                    float magnitude = Mathf.Sqrt(cos * cos + sin * sin);
+                    if (magnitude > 0.0001f)
+                    {
+                        rainbowCosNext[index] = cos / magnitude;
+                        rainbowSinNext[index] = sin / magnitude;
+                    }
+                    else
+                    {
+                        rainbowCosNext[index] = 0f;
+                        rainbowSinNext[index] = 0f;
+                    }
+                }
+                else
+                {
+                    rainbowCosNext[index] = 0f;
+                    rainbowSinNext[index] = 0f;
+                }
+                rainbowStrengthNext[index] = Mathf.Clamp01(oldStrength + injection * (1f - oldStrength));
+            }
+        }
+
+        Swap(ref rainbowCos, ref rainbowCosNext);
+        Swap(ref rainbowSin, ref rainbowSinNext);
+        Swap(ref rainbowStrength, ref rainbowStrengthNext);
+        rainbowPhase += segmentLength / rainbowCycleLength;
+        previousBallX = ballX;
+        previousBallZ = ballZ;
+    }
+
     private void AddVorticityConfinement(float dt)
     {
         ComputeVorticity();
@@ -437,6 +567,26 @@ public sealed class FluidSimulation2D : MonoBehaviour
         fieldTexture.Apply(false, false);
     }
 
+    private void UploadRainbowField()
+    {
+        if (rainbowTexture == null) return;
+        for (int z = 1; z <= Resolution; z++)
+        {
+            for (int x = 1; x <= Resolution; x++)
+            {
+                int index = Index(x, z);
+                float strength = Mathf.Clamp01(rainbowStrength[index]);
+                rainbowPixels[(z - 1) * Resolution + x - 1] = new Color(
+                    rainbowCos[index] * 0.5f + 0.5f,
+                    rainbowSin[index] * 0.5f + 0.5f,
+                    strength,
+                    1f);
+            }
+        }
+        rainbowTexture.SetPixels(rainbowPixels);
+        rainbowTexture.Apply(false, false);
+    }
+
     private float NeighborVelocity(float[] field, int x, int z, float ambientBoundary)
     {
         x = Mathf.Clamp(x, 0, Resolution + 1);
@@ -515,6 +665,11 @@ public sealed class FluidSimulation2D : MonoBehaviour
         {
             if (Application.isPlaying) Destroy(fieldTexture);
             else DestroyImmediate(fieldTexture);
+        }
+        if (rainbowTexture != null)
+        {
+            if (Application.isPlaying) Destroy(rainbowTexture);
+            else DestroyImmediate(rainbowTexture);
         }
     }
 }
