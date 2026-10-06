@@ -54,7 +54,7 @@ public sealed class FluidCurrentOverlayUI : MonoBehaviour
     private void Build()
     {
         EnsureEventSystem();
-        canvasObject = new GameObject("Currents TMP Overlay", typeof(RectTransform), typeof(Canvas),
+        canvasObject = new GameObject("Currents UI Overlay", typeof(RectTransform), typeof(Canvas),
             typeof(CanvasScaler), typeof(GraphicRaycaster));
         Canvas canvas = canvasObject.GetComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
