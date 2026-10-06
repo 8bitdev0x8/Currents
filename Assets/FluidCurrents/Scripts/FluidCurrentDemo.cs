@@ -1,102 +1,70 @@
 using UnityEngine;
 
-/// <summary>Creates a camera-filling procedural current effect at runtime.</summary>
+/// <summary>Controls the world-space fluid surface, its Karman wake, and the interactive sphere.</summary>
 [RequireComponent(typeof(Camera))]
 public class FluidCurrentDemo : MonoBehaviour
 {
-    [Header("Look")]
-    public Color deepColor = new Color(0.012f, 0.008f, 0.025f);
-    public Color middleColor = new Color(0.19f, 0.07f, 0.28f);
-    public Color highlightColor = new Color(0.78f, 0.58f, 0.91f);
-    public Color redCurrent = new Color(0.95f, 0.035f, 0.12f);
-    public Color goldCurrent = new Color(1f, 0.58f, 0.06f);
-    [Range(1f, 12f)] public float flowScale = 3f;
-    [Range(0f, 2f)] public float speed = 0.14f;
-    [Range(0f, 2f)] public float swirl = 0.85f;
-    [Range(2f, 30f)] public float contourBands = 19f;
-    [Range(0f, 2f)] public float ballInfluence = 1f;
+    [Header("Surface palette")]
+    public Color deepColor = new Color(0.008f, 0.006f, 0.014f);
+    public Color purpleColor = new Color(0.18f, 0.075f, 0.24f);
+    public Color lineColor = new Color(0.82f, 0.69f, 0.91f);
+    public Color redCurrent = new Color(0.96f, 0.035f, 0.075f);
+    public Color goldCurrent = new Color(1f, 0.44f, 0.035f);
+
+    [Header("Flow model")]
+    [Min(0.1f)] public float flowVelocity = 2.6f;
+    [Range(0.12f, 0.30f)] public float strouhalNumber = 0.20f;
+    [Range(0.001f, 0.15f)] public float kinematicViscosity = 0.025f;
+    [Min(1f)] public float lineFrequency = 11f;
+    [Range(0f, 2f)] public float wakeStrength = 1f;
+    public Vector2 flowDirection = new Vector2(0.88f, -0.47f);
 
     private Camera targetCamera;
-    private GameObject surface;
-    private Material materialInstance;
+    private Renderer surfaceRenderer;
+    private Material runtimeSurfaceMaterial;
+    private FluidBallInteraction ball;
 
-    private void OnEnable()
+    private void Awake()
     {
         targetCamera = GetComponent<Camera>();
         targetCamera.clearFlags = CameraClearFlags.SolidColor;
-        targetCamera.backgroundColor = Color.black;
-        CreateSurface();
-        ApplySettings();
+        targetCamera.backgroundColor = new Color(0.008f, 0.006f, 0.014f);
+        FindSceneObjects();
+        if (surfaceRenderer != null) runtimeSurfaceMaterial = surfaceRenderer.material;
     }
 
-    private void OnDisable()
+    private void OnDestroy()
     {
-        if (surface != null)
-        {
-            if (Application.isPlaying) Destroy(surface);
-            else DestroyImmediate(surface);
-        }
-        if (materialInstance != null)
-        {
-            if (Application.isPlaying) Destroy(materialInstance);
-            else DestroyImmediate(materialInstance);
-        }
+        if (runtimeSurfaceMaterial != null && Application.isPlaying)
+            Destroy(runtimeSurfaceMaterial);
+    }
+
+    private void FindSceneObjects()
+    {
+        GameObject surface = GameObject.Find("Fluid Surface");
+        surfaceRenderer = surface != null ? surface.GetComponent<Renderer>() : null;
+        ball = FindObjectOfType<FluidBallInteraction>();
     }
 
     private void Update()
     {
-        if (targetCamera == null) targetCamera = GetComponent<Camera>();
-        if (surface == null) CreateSurface();
-        FitSurface();
-        ApplySettings();
-    }
+        if (surfaceRenderer == null || ball == null) FindSceneObjects();
+        if (runtimeSurfaceMaterial == null || ball == null) return;
 
-    private void CreateSurface()
-    {
-        if (targetCamera == null) targetCamera = GetComponent<Camera>();
-        Shader shader = Shader.Find("FluidCurrents/Procedural Currents");
-        if (shader == null)
-        {
-            Debug.LogError("Fluid Currents shader not found. Ensure FluidCurrents.shader is included in the project.", this);
-            return;
-        }
-
-        surface = GameObject.CreatePrimitive(PrimitiveType.Quad);
-        surface.name = "Procedural Fluid Currents";
-        surface.transform.SetParent(transform, false);
-        Collider collider = surface.GetComponent<Collider>();
-        if (collider != null)
-        {
-            if (Application.isPlaying) Destroy(collider);
-            else DestroyImmediate(collider);
-        }
-        materialInstance = new Material(shader) { name = "Fluid Currents (Runtime)" };
-        surface.GetComponent<Renderer>().sharedMaterial = materialInstance;
-        FitSurface();
-    }
-
-    private void FitSurface()
-    {
-        if (surface == null || targetCamera == null || targetCamera.orthographic) return;
-        const float distance = 50f;
-        float height = 2f * distance * Mathf.Tan(targetCamera.fieldOfView * 0.5f * Mathf.Deg2Rad);
-        surface.transform.localPosition = new Vector3(0f, 0f, distance);
-        surface.transform.localRotation = Quaternion.identity;
-        surface.transform.localScale = new Vector3(height * targetCamera.aspect, height, 1f);
-    }
-
-    private void ApplySettings()
-    {
-        if (materialInstance == null) return;
-        materialInstance.SetColor("_ColorA", deepColor);
-        materialInstance.SetColor("_ColorB", middleColor);
-        materialInstance.SetColor("_ColorC", highlightColor);
-        materialInstance.SetColor("_AccentRed", redCurrent);
-        materialInstance.SetColor("_AccentGold", goldCurrent);
-        materialInstance.SetFloat("_Scale", flowScale);
-        materialInstance.SetFloat("_Speed", speed);
-        materialInstance.SetFloat("_Swirl", swirl);
-        materialInstance.SetFloat("_BandCount", contourBands);
-        materialInstance.SetFloat("_BallStrength", ballInfluence);
+        Vector2 direction = flowDirection.sqrMagnitude > 0.0001f ? flowDirection.normalized : Vector2.right;
+        runtimeSurfaceMaterial.SetColor("_Deep", deepColor);
+        runtimeSurfaceMaterial.SetColor("_Purple", purpleColor);
+        runtimeSurfaceMaterial.SetColor("_Line", lineColor);
+        runtimeSurfaceMaterial.SetColor("_RedCurrent", redCurrent);
+        runtimeSurfaceMaterial.SetColor("_GoldCurrent", goldCurrent);
+        runtimeSurfaceMaterial.SetVector("_FlowDirection", new Vector4(direction.x, direction.y, 0f, 0f));
+        runtimeSurfaceMaterial.SetVector("_BallPosition", ball.transform.position);
+        runtimeSurfaceMaterial.SetFloat("_BallRadius", ball.Radius);
+        runtimeSurfaceMaterial.SetFloat("_FlowVelocity", flowVelocity);
+        runtimeSurfaceMaterial.SetFloat("_Strouhal", strouhalNumber);
+        runtimeSurfaceMaterial.SetFloat("_Viscosity", kinematicViscosity);
+        runtimeSurfaceMaterial.SetFloat("_LineFrequency", lineFrequency);
+        runtimeSurfaceMaterial.SetFloat("_WakeStrength", wakeStrength);
+        runtimeSurfaceMaterial.SetFloat("_ElapsedTime", Time.time);
     }
 }

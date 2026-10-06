@@ -1,0 +1,44 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: FluidSurface
+  m_Shader: {fileID: 4800000, guid: 90361cce6bf273e419f56e9e6530cc33, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs: []
+    m_Ints: []
+    m_Floats:
+    - _BallRadius: 1.5
+    - _ElapsedTime: 0
+    - _FlowVelocity: 2.6
+    - _LineFrequency: 11
+    - _Strouhal: 0.2
+    - _Viscosity: 0.025
+    - _WakeStrength: 1
+    m_Colors:
+    - _BallPosition: {r: 0, g: 1.5, b: 8, a: 0}
+    - _Deep: {r: 0.008, g: 0.006, b: 0.014, a: 1}
+    - _FlowDirection: {r: 0.88, g: -0.47, b: 0, a: 0}
+    - _GoldCurrent: {r: 1, g: 0.44, b: 0.035, a: 1}
+    - _Line: {r: 0.82, g: 0.69, b: 0.91, a: 1}
+    - _Purple: {r: 0.18, g: 0.075, b: 0.24, a: 1}
+    - _RedCurrent: {r: 0.96, g: 0.035, b: 0.075, a: 1}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1

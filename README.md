@@ -1,26 +1,15 @@
-# Fluid Currents — Unity starter
+# Fluid Currents — Unity
 
-A small procedural shader demo for flowing, psychedelic current artwork. The effect is animated and rendered on a camera-filling quad; it does not simulate physical fluid. The shader works with Unity's built-in renderer and URP.
+An interactive, perspective 3D fluid-art scene inspired by the supplied Blender render. The sphere is a true 3D object resting on a large procedural surface. Drag it through the Game view to move the obstacle and its wake.
 
-## Open the included project
+The surface uses a potential-flow approximation around the sphere plus an alternating, viscously broadened vortex street. Its shedding frequency follows `f = St × U / D`, with the Strouhal number exposed in the Inspector. This is a real-time visual model, not a full computational-fluid-dynamics solver.
 
-Open `UnityProject` in Unity Hub. It is a standard project created with the installed Unity 6 editor, with the demo assets already copied into its `Assets` folder.
+## Run it
 
-## Get it running
+1. Open `D:\Currents\UnityProject` in Unity Hub with Unity 6.0.3 or newer.
+2. Open `Assets/Scenes/FluidCurrentsDemo` if needed.
+3. Press **Play** and drag the silver ball in the Game view.
 
-1. Open `D:\Currents\UnityProject` from Unity Hub using Unity 6.0.3 or newer.
-2. Open `Assets/Scenes/FluidCurrentsDemo` if Unity did not open it automatically.
-3. Press **Play**. The animated contour field and silver ball appear.
-4. Drag the ball with the mouse in the Game view. The current lines bend around it as it moves.
-5. Select **Main Camera** to adjust the palette, flow scale, speed, swirl, contour bands, and ball influence.
+Select **Main Camera** to tune flow velocity, Strouhal number, viscosity, wake strength, line frequency, flow direction, and the black, violet, silver-lavender, red, and amber palette. The demo scene is listed in Build Settings.
 
-The demo scene is included and enabled in Build Settings. Its palette uses near-black, lavender, silver, red, and gold. The shader works with Unity's built-in renderer and URP, and needs no extra packages.
-
-## Tuning tips
-
-- Lower **Flow Scale** for broad, liquid folds; raise it for tighter currents.
-- Raise **Swirl** for more warped, psychedelic motion.
-- Lower **Speed** for a slowly shifting album-art loop.
-- Try a dark navy base with cyan and magenta highlights for a saturated, high-contrast palette.
-
-For a still image, pause at a chosen frame and capture the Game view at the desired resolution. For a seamless loop, keep the animation time periodic and record a full repeat; the current shader is designed as an evolving effect rather than an exact seamless loop.
+The project uses Unity's built-in renderer and requires no extra packages.
