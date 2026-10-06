@@ -27,6 +27,21 @@ public class FluidCurrentDemo : MonoBehaviour
     [Range(15f, 60f)] public float simulationRate = 30f;
     [Header("Flow recovery")]
     [Range(0.0001f, 2f)] public float normalFlowRecovery = 0.001f;
+
+    [Header("Show parameters in overlay")]
+    public bool showFlowVelocityInOverlay = true;
+    public bool showViscosityInOverlay;
+    public bool showWakeStrengthInOverlay;
+    public bool showWakeViolenceInOverlay;
+    public bool showLineFrequencyInOverlay;
+    public bool showLineWidthInOverlay;
+    public bool showRedLineWidthInOverlay;
+    public bool showBlackLineWidthInOverlay;
+    public bool showEdgeFadeInOverlay;
+    public bool showRainbowFadeInOverlay;
+    public bool showRainbowCycleInOverlay;
+    public bool showSimulationRateInOverlay;
+    public bool showFlowRecoveryInOverlay;
     public Vector2 flowDirection = new Vector2(0.22f, -0.41f);
 
     [Header("Fixed accent current")]
@@ -41,6 +56,8 @@ public class FluidCurrentDemo : MonoBehaviour
     private Vector3 flowDirectionDragStart;
     private float displayedFps;
     private GUIStyle fpsStyle;
+    private bool overlayOpen;
+    private Vector2 overlayScroll;
 
     private void Awake()
     {
@@ -112,6 +129,8 @@ public class FluidCurrentDemo : MonoBehaviour
 
     private void OnGUI()
     {
+        DrawParameterOverlay();
+
         if (fpsStyle == null)
         {
             fpsStyle = new GUIStyle(GUI.skin.label)
@@ -126,9 +145,65 @@ public class FluidCurrentDemo : MonoBehaviour
         GUI.Label(new Rect(Screen.width - 150f, 12f, 136f, 30f), $"{displayedFps:0} FPS", fpsStyle);
     }
 
+    private void DrawParameterOverlay()
+    {
+        float panelWidth = Mathf.Min(340f, Screen.width - 24f);
+        if (GUI.Button(new Rect(12f, 12f, panelWidth, 30f), overlayOpen ? "Fluid Parameters  [-]" : "Fluid Parameters  [+]"))
+            overlayOpen = !overlayOpen;
+        if (!overlayOpen) return;
+
+        float panelHeight = Mathf.Min(560f, Mathf.Max(120f, Screen.height - 64f));
+        GUI.Box(new Rect(12f, 46f, panelWidth, panelHeight), GUIContent.none);
+        GUILayout.BeginArea(new Rect(20f, 52f, panelWidth - 16f, panelHeight - 12f));
+        overlayScroll = GUILayout.BeginScrollView(overlayScroll);
+
+        if (showFlowVelocityInOverlay) DrawOverlaySlider("Flow velocity", ref flowVelocity, 0.1f, 4f);
+        if (showViscosityInOverlay) DrawOverlaySlider("Kinematic viscosity", ref kinematicViscosity, 0.001f, 0.15f);
+        if (showWakeStrengthInOverlay) DrawOverlaySlider("Wake strength", ref wakeStrength, 0f, 2f);
+        if (showWakeViolenceInOverlay) DrawOverlaySlider("Wake violence", ref wakeViolence, 0.5f, 5f);
+        if (showLineFrequencyInOverlay) DrawOverlaySlider("Line frequency", ref lineFrequency, 1f, 12f);
+        if (showLineWidthInOverlay) DrawOverlaySlider("Line width", ref lineWidth, 0.005f, 0.2f);
+        if (showRedLineWidthInOverlay) DrawOverlaySlider("Red line width", ref redLineWidth, 0.02f, 0.4f);
+        if (showBlackLineWidthInOverlay) DrawOverlaySlider("Black line width", ref blackLineWidth, 0f, 0.2f);
+        if (showEdgeFadeInOverlay) DrawOverlaySlider("Edge fade distance", ref edgeFadeDistance, 1f, 40f);
+        if (showRainbowFadeInOverlay) DrawOverlaySlider("Rainbow fade distance", ref rainbowFadeDistance, 8f, 60f);
+        if (showRainbowCycleInOverlay) DrawOverlaySlider("Rainbow cycle length", ref rainbowCycleLength, 4f, 40f);
+        if (showSimulationRateInOverlay) DrawOverlaySlider("Simulation rate", ref simulationRate, 15f, 60f);
+        if (showFlowRecoveryInOverlay) DrawRecoverySlider();
+
+        GUILayout.EndScrollView();
+        GUILayout.EndArea();
+    }
+
+    private static void DrawOverlaySlider(string label, ref float value, float minimum, float maximum)
+    {
+        GUILayout.BeginHorizontal();
+        GUILayout.Label($"{label}: {value:0.###}", GUILayout.Width(164f));
+        value = GUILayout.HorizontalSlider(value, minimum, maximum);
+        GUILayout.EndHorizontal();
+    }
+
+    private void DrawRecoverySlider()
+    {
+        GUILayout.BeginHorizontal();
+        GUILayout.Label($"Flow recovery: {normalFlowRecovery:0.####}", GUILayout.Width(164f));
+        float minimum = Mathf.Log10(0.0001f);
+        float maximum = Mathf.Log10(2f);
+        float logarithmicValue = Mathf.Log10(Mathf.Clamp(normalFlowRecovery, 0.0001f, 2f));
+        logarithmicValue = GUILayout.HorizontalSlider(logarithmicValue, minimum, maximum);
+        normalFlowRecovery = Mathf.Pow(10f, logarithmicValue);
+        GUILayout.EndHorizontal();
+    }
+
     private void HandleFlowDirectionInput()
     {
         if (surfaceRenderer == null || targetCamera == null) return;
+        if (IsPointerOverOverlay())
+        {
+            if (Input.GetMouseButtonUp(0)) settingFlowDirection = false;
+            return;
+        }
+
         if (Input.GetMouseButtonDown(0))
         {
             Ray pickRay = targetCamera.ScreenPointToRay(Input.mousePosition);
@@ -153,6 +228,16 @@ public class FluidCurrentDemo : MonoBehaviour
                                    currentPoint.z - flowDirectionDragStart.z);
         if (drag.sqrMagnitude > 0.04f)
             flowDirection = drag.normalized;
+    }
+
+    private bool IsPointerOverOverlay()
+    {
+        Vector2 mouse = new Vector2(Input.mousePosition.x, Screen.height - Input.mousePosition.y);
+        float panelWidth = Mathf.Min(340f, Screen.width - 24f);
+        if (new Rect(12f, 12f, panelWidth, 30f).Contains(mouse)) return true;
+        if (!overlayOpen) return false;
+        float panelHeight = Mathf.Min(560f, Mathf.Max(120f, Screen.height - 64f));
+        return new Rect(12f, 46f, panelWidth, panelHeight).Contains(mouse);
     }
 
     private bool TryGetSurfacePoint(Vector3 screenPoint, out Vector3 point)

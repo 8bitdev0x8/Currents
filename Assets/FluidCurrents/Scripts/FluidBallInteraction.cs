@@ -5,6 +5,7 @@ using UnityEngine;
 public class FluidBallInteraction : MonoBehaviour
 {
     private Camera sceneCamera;
+    private Renderer surfaceRenderer;
     private Plane dragPlane;
     private Vector3 grabOffset;
     private bool dragging;
@@ -25,6 +26,8 @@ public class FluidBallInteraction : MonoBehaviour
     {
         sceneCamera = Camera.main;
         if (sceneCamera == null) sceneCamera = FindObjectOfType<Camera>();
+        GameObject surface = GameObject.Find("Fluid Surface");
+        if (surface != null) surfaceRenderer = surface.GetComponent<Renderer>();
         targetHeight = transform.position.y;
         lastPosition = transform.position;
     }
@@ -37,13 +40,33 @@ public class FluidBallInteraction : MonoBehaviour
         }
 
         float height = Mathf.SmoothDamp(transform.position.y, targetHeight, ref heightSmoothVelocity, heightSmoothTime);
-        transform.position = new Vector3(transform.position.x, height, transform.position.z);
+        transform.position = ConstrainToSurface(new Vector3(transform.position.x, height, transform.position.z));
 
         float deltaTime = Mathf.Max(Time.deltaTime, 0.0001f);
         Vector3 measuredVelocity = Vector3.ClampMagnitude((transform.position - lastPosition) / deltaTime, 8f);
         velocity = Vector3.Lerp(velocity, measuredVelocity, 1f - Mathf.Exp(-deltaTime * 10f));
         movementIntensity = Mathf.MoveTowards(movementIntensity, Mathf.Clamp01(velocity.magnitude / 4f), deltaTime * 3f);
         lastPosition = transform.position;
+    }
+
+    private Vector3 ConstrainToSurface(Vector3 position)
+    {
+        if (surfaceRenderer == null)
+        {
+            GameObject surface = GameObject.Find("Fluid Surface");
+            if (surface != null) surfaceRenderer = surface.GetComponent<Renderer>();
+        }
+        if (surfaceRenderer == null) return position;
+
+        Bounds bounds = surfaceRenderer.bounds;
+        float radius = Radius;
+        float minX = bounds.min.x + radius;
+        float maxX = bounds.max.x - radius;
+        float minZ = bounds.min.z + radius;
+        float maxZ = bounds.max.z - radius;
+        position.x = minX <= maxX ? Mathf.Clamp(position.x, minX, maxX) : bounds.center.x;
+        position.z = minZ <= maxZ ? Mathf.Clamp(position.z, minZ, maxZ) : bounds.center.z;
+        return position;
     }
 
     private void UpdateDragging()
