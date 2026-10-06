@@ -16,6 +16,7 @@ Shader "FluidCurrents/World Surface"
         _BlackLineWidth ("Black outline width", Range(0, 0.2)) = 0.04
         _BallRadius ("Sphere radius", Float) = 1.5
         _BallPosition ("Sphere world position", Vector) = (0, 0, 8, 0)
+        _FieldBounds ("Flow field world bounds", Vector) = (-30, -20, 60, 60)
         _ElapsedTime ("Elapsed time", Float) = 0
         [NoScaleOffset] _FlowField ("Simulated flow field", 2D) = "black" {}
     }
@@ -50,8 +51,10 @@ Shader "FluidCurrents/World Surface"
             float _ElapsedTime;
             sampler2D _FlowField;
 
-            struct appdata { float4 vertex : POSITION; float2 uv : TEXCOORD0; };
-            struct v2f { float4 position : SV_POSITION; float3 worldPos : TEXCOORD0; float2 uv : TEXCOORD1; float eyeDepth : TEXCOORD2; };
+            float4 _FieldBounds;
+
+            struct appdata { float4 vertex : POSITION; };
+            struct v2f { float4 position : SV_POSITION; float3 worldPos : TEXCOORD0; float eyeDepth : TEXCOORD1; };
 
             v2f vert(appdata input)
             {
@@ -59,7 +62,6 @@ Shader "FluidCurrents/World Surface"
                 float4 world = mul(unity_ObjectToWorld, input.vertex);
                 output.position = UnityObjectToClipPos(input.vertex);
                 output.worldPos = world.xyz;
-                output.uv = input.uv;
                 output.eyeDepth = -UnityObjectToViewPos(input.vertex).z;
                 return output;
             }
@@ -78,7 +80,8 @@ Shader "FluidCurrents/World Surface"
                 float2 side = float2(-flow.y, flow.x);
                 float radius = max(_BallRadius, 0.01);
                 float speed = max(_FlowVelocity, 0.01);
-                float4 flowField = tex2D(_FlowField, input.uv);
+                float2 fieldUv = (world - _FieldBounds.xy) / max(_FieldBounds.zw, float2(0.0001, 0.0001));
+                float4 flowField = tex2D(_FlowField, saturate(fieldUv));
                 float psi = flowField.r;
                 float simulatedSpeed = flowField.g;
                 float vorticity = flowField.b;

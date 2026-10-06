@@ -93,6 +93,9 @@ public class FluidCurrentDemo : MonoBehaviour
         EnsureSimulation();
         simulation.Advance(Time.deltaTime, ball, flowDirection, flowVelocity, kinematicViscosity,
             wakeStrength, wakeViolence, currentOriginXZ);
+        Bounds bounds = surfaceRenderer.bounds;
+        runtimeSurfaceMaterial.SetVector("_FieldBounds",
+            new Vector4(bounds.min.x, bounds.min.z, bounds.size.x, bounds.size.z));
         runtimeSurfaceMaterial.SetTexture("_FlowField", simulation.FieldTexture);
     }
 }
